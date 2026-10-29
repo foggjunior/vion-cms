@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+<title>Vion CMS · local tests</title>
+<style>
+  body { font: 14px/1.5 "Segoe UI", Arial, sans-serif; margin: 24px; color: #252a34; background: #f8f9fb; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  #summary { margin: 12px 0 18px; font-weight: 600; }
+  li { margin: 2px 0; }
+  .ok { color: #2f7d5b; }
+  .fail { color: #b3261e; white-space: pre-wrap; }
+  small { color: #7b808a; }
+</style>
+</head>
+<body>
+<h1>Vion CMS — repository, validation and import tests</h1>
+<p><small>Runs in this browser against real IndexedDB using temporary databases (your CMS data is not touched).</small></p>
+<div id="summary" role="status">Running…</div>
+<ol id="results"></ol>
+<script type="module" src="run.js"></script>
+</body>
+</html>

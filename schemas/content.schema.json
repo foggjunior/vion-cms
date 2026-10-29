@@ -1,0 +1,657 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vion CMS working record draft schema v1",
+  "description": "Proposed draft shapes only; semantic publish, relationship, route and media checks are defined in docs/IMPLEMENTATION_SPEC.md. Published snapshots and asset stores are separate envelopes.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/destination"
+    },
+    {
+      "$ref": "#/$defs/accommodation"
+    },
+    {
+      "$ref": "#/$defs/tour"
+    }
+  ],
+  "$defs": {
+    "destination": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "version",
+        "schemaVersion"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "destination"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^$|^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "seo": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "shareAssetId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "noindex": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "assetId",
+                "alt"
+              ],
+              "properties": {
+                "assetId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "alt": {
+                  "type": "string"
+                },
+                "decorative": {
+                  "type": "boolean"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gallery": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "assetId",
+              "alt"
+            ],
+            "properties": {
+              "assetId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "alt": {
+                "type": "string"
+              },
+              "decorative": {
+                "type": "boolean"
+              },
+              "caption": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "internalName": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "overview": {
+          "type": "string"
+        },
+        "wildlife": {
+          "type": "string"
+        },
+        "activities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bestTime": {
+          "type": "string"
+        },
+        "legacyTravelTips": {
+          "type": "string"
+        },
+        "travelTips": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "body"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "order": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "accommodation": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "version",
+        "schemaVersion"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "accommodation"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^$|^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "seo": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "shareAssetId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "noindex": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "assetId",
+                "alt"
+              ],
+              "properties": {
+                "assetId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "alt": {
+                  "type": "string"
+                },
+                "decorative": {
+                  "type": "boolean"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gallery": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "assetId",
+              "alt"
+            ],
+            "properties": {
+              "assetId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "alt": {
+                "type": "string"
+              },
+              "decorative": {
+                "type": "boolean"
+              },
+              "caption": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "destinationId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "noDestinationReason": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "standard": {
+          "type": "string"
+        },
+        "setting": {
+          "enum": [
+            "insidePark",
+            "outsidePark",
+            "unspecified"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "amenities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "activities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "publicPhone": {
+          "type": "string"
+        },
+        "publicPhoneVisible": {
+          "type": "boolean"
+        },
+        "website": {
+          "type": "string"
+        },
+        "publicPageEnabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tour": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "version",
+        "schemaVersion"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "tour"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^$|^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "seo": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "shareAssetId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "noindex": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "assetId",
+                "alt"
+              ],
+              "properties": {
+                "assetId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "alt": {
+                  "type": "string"
+                },
+                "decorative": {
+                  "type": "boolean"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gallery": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "assetId",
+              "alt"
+            ],
+            "properties": {
+              "assetId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "alt": {
+                "type": "string"
+              },
+              "decorative": {
+                "type": "boolean"
+              },
+              "caption": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "overview": {
+          "type": "string"
+        },
+        "durationDays": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "destinationIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "typeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categoryId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "standardId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tagIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "itinerary": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "dayNumber",
+              "title",
+              "description"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "dayNumber": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "destinationIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "accommodationIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "meals": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "activities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "inclusions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "featured": {
+          "type": "boolean"
+        },
+        "recommendedRank": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pricing": {
+          "type": "object",
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "request",
+                "manualFrom"
+              ]
+            },
+            "amount": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "basis": {
+              "enum": [
+                "perPerson",
+                "perGroup",
+                "perVehicle"
+              ]
+            },
+            "applicability": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
