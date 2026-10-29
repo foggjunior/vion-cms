@@ -8,6 +8,10 @@ import { createPreviewView } from './preview-view.js';
 import { createSiteView } from './site-view.js';
 import { createMediaLibraryView } from './media-library-view.js';
 import { createBackupView, createRedirectsView, createTaxonomyView } from './tools.js';
+import { settingsModule } from './settings.js';
+import { teamModule } from './team.js';
+import { createTeamListView } from './team-list-view.js';
+import { createMemberPreviewView, createSettingsPreviewView, createTeamPagePreviewView } from './site-preview-view.js';
 
 export const CONTENT_MODULES = Object.freeze({ tours: tourModule, destinations: destinationModule, accommodations: accommodationModule });
 
@@ -15,7 +19,8 @@ export const CONTENT_MODULES = Object.freeze({ tours: tourModule, destinations: 
 export const CONTENT_ROUTES = Object.freeze({
   'Tours List': '#/tours', 'Add Tour': '#/tours/new',
   'Destinations List': '#/destinations', 'Add Destination': '#/destinations/new',
-  'Accommodations List': '#/accommodations', 'Add Accommodation': '#/accommodations/new'
+  'Accommodations List': '#/accommodations', 'Add Accommodation': '#/accommodations/new',
+  'Setting Options': '#/settings', 'Team': '#/team'
 });
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -31,6 +36,13 @@ export function parseRoute(hash) {
   if ((m = path.match(/^\/(tours|destinations|accommodations)\/new$/))) return { type: 'editor', def: CONTENT_MODULES[m[1]], id: null };
   if ((m = path.match(new RegExp(`^/(tours|destinations|accommodations)/(${UUID})$`, 'i')))) return { type: 'editor', def: CONTENT_MODULES[m[1]], id: m[2].toLowerCase() };
   if ((m = path.match(new RegExp(`^/(tours|destinations|accommodations)/(${UUID})/preview$`, 'i')))) return { type: 'preview', def: CONTENT_MODULES[m[1]], id: m[2].toLowerCase(), params };
+  if (path === '/settings') return { type: 'editor', def: settingsModule, id: null };
+  if (path === '/settings/preview') return { type: 'settings-preview', params };
+  if (path === '/team' || path === '/team/') return { type: 'team-list', params };
+  if (path === '/team/new') return { type: 'editor', def: teamModule, id: null };
+  if (path === '/team/preview') return { type: 'team-preview', params };
+  if ((m = path.match(new RegExp(`^/team/(${UUID})$`, 'i')))) return { type: 'editor', def: teamModule, id: m[1].toLowerCase() };
+  if ((m = path.match(new RegExp(`^/team/(${UUID})/preview$`, 'i')))) return { type: 'member-preview', id: m[1].toLowerCase(), params };
   if (path === '/media') return { type: 'media' };
   if (path === '/taxonomies') return { type: 'taxonomies' };
   if (path === '/redirects') return { type: 'redirects' };
@@ -50,6 +62,10 @@ export function createView(route, app) {
     case 'redirects': return createRedirectsView({ app });
     case 'backup': return createBackupView({ app });
     case 'site': return createSiteView({ app, path: route.path });
+    case 'settings-preview': return createSettingsPreviewView({ app, params: route.params });
+    case 'team-list': return createTeamListView({ app, params: route.params });
+    case 'team-preview': return createTeamPagePreviewView({ app, params: route.params });
+    case 'member-preview': return createMemberPreviewView({ app, id: route.id, params: route.params });
     default: return null;
   }
 }

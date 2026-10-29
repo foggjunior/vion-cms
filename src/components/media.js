@@ -42,56 +42,59 @@ export function assetSummary(asset) {
 
 const errorSlot = path => h('p', { class: 'field-error', id: `${fieldIdFor(path)}-error`, hidden: true });
 
-function placementInputs(path, placement, { onChange, readOnly, allowDecorative }) {
+function placementInputs(path, placement, { onChange, readOnly, allowDecorative, allowCaption = true, altRequired = true, altPlaceholder = 'Describe what this image shows here' }) {
   const altId = fieldIdFor(`${path}.alt`);
   const capId = fieldIdFor(`${path}.caption`);
   const decoId = fieldIdFor(`${path}.decorative`);
   return h('div', { class: 'placement-fields' },
     h('div', { class: 'field' },
-      h('label', { for: altId, class: 'field-label' }, 'Alt text', h('span', { class: 'req' }, allowDecorative ? ' · required unless decorative' : ' · required to publish')),
-      h('input', { id: altId, class: 'input', type: 'text', value: placement.alt || '', readOnly, 'aria-describedby': `${altId}-error`, placeholder: 'Describe what this image shows here', on: { input: e => { placement.alt = e.target.value; onChange(); } } }),
+      h('label', { for: altId, class: 'field-label' }, 'Alt text', h('span', { class: 'req' }, allowDecorative ? ' · required unless decorative' : altRequired ? ' · required to publish' : ' (optional)')),
+      h('input', { id: altId, class: 'input', type: 'text', value: placement.alt || '', readOnly, 'aria-describedby': `${altId}-error`, placeholder: altPlaceholder, on: { input: e => { placement.alt = e.target.value; onChange(); } } }),
       errorSlot(`${path}.alt`)),
     allowDecorative ? h('label', { class: 'check' },
       h('input', { id: decoId, type: 'checkbox', checked: !!placement.decorative, disabled: readOnly, on: { change: e => { placement.decorative = e.target.checked; onChange(); } } }),
       h('span', null, 'Decorative (no alt text needed)')) : null,
-    h('div', { class: 'field' },
+    allowCaption ? h('div', { class: 'field' },
       h('label', { for: capId, class: 'field-label' }, 'Caption (optional)'),
-      h('input', { id: capId, class: 'input', type: 'text', value: placement.caption || '', readOnly, on: { input: e => { placement.caption = e.target.value; onChange(); } } })));
+      h('input', { id: capId, class: 'input', type: 'text', value: placement.caption || '', readOnly, on: { input: e => { placement.caption = e.target.value; onChange(); } } })) : null);
 }
 
-// Single cover placement. `pick()` resolves to an array of asset metadata or null.
-export function coverField({ path = 'cover', label = 'Cover image', hint, model, ctx, scope, pick, onChange, readOnly = false }) {
+// Single image placement (a cover by default). `model[path]` holds { assetId, alt, … }; `idPath` names the
+// field for ids and validation messages when the placement is nested (for example branding.shareImage).
+// `pick()` resolves to an array of asset metadata or null.
+export function coverField({ path = 'cover', idPath = path, label = 'Cover image', hint, model, ctx, scope, pick, onChange, readOnly = false, required = 'publish', allowCaption = true, altRequired = true, altPlaceholder, texts = {} }) {
+  const t = { pickTitle: 'Choose cover image', empty: 'No cover image selected.', choose: 'Choose or upload cover', replace: 'Replace image', remove: 'Remove cover', ...texts };
   const container = h('div', { class: 'field field-wide media-field' });
-  const id = fieldIdFor(path);
+  const id = fieldIdFor(idPath);
   async function choose() {
-    const picked = await pick({ multiple: false, title: 'Choose cover image' });
+    const picked = await pick({ multiple: false, title: t.pickTitle });
     if (!picked?.length) return;
     const asset = picked[0];
     model[path] = { assetId: asset.id, alt: model[path]?.assetId === asset.id ? model[path].alt : asset.alt || '' };
     onChange();
     render();
-    container.querySelector(`#${fieldIdFor(`${path}.alt`)}`)?.focus();
+    container.querySelector(`#${fieldIdFor(`${idPath}.alt`)}`)?.focus();
   }
   function render() {
     clear(container);
     const placement = model[path];
-    container.append(h('span', { class: 'field-label' }, label, h('span', { class: 'req' }, ' · required to publish')));
+    container.append(h('span', { class: 'field-label' }, label, required ? h('span', { class: 'req' }, required === 'publish' ? ' · required to publish' : ' *') : null));
     if (hint) container.append(h('p', { class: 'field-hint' }, hint));
     if (!placement) {
-      container.append(h('div', { class: 'media-empty' }, icon('image'), h('p', null, 'No cover image selected.'),
-        readOnly ? null : button('Choose or upload cover', { variant: 'secondary', iconName: 'upload', id, onClick: choose, 'aria-describedby': `${id}-error` })));
+      container.append(h('div', { class: 'media-empty' }, icon('image'), h('p', null, t.empty),
+        readOnly ? null : button(t.choose, { variant: 'secondary', iconName: 'upload', id, onClick: choose, 'aria-describedby': `${id}-error` })));
     } else {
       const asset = ctx.assets.get(placement.assetId);
       container.append(h('div', { class: 'media-card' },
         assetImage(scope, placement.assetId, { alt: placement.alt, className: 'media-preview', asset }),
         h('div', { class: 'media-card-body' },
           assetSummary(asset),
-          placementInputs(path, placement, { onChange, readOnly, allowDecorative: false }),
+          placementInputs(idPath, placement, { onChange, readOnly, allowDecorative: false, allowCaption, altRequired, altPlaceholder }),
           readOnly ? null : h('div', { class: 'btn-row' },
-            button('Replace image', { iconName: 'image', id, onClick: choose, 'aria-describedby': `${id}-error` }),
-            button('Remove cover', { variant: 'ghost', iconName: 'trash', onClick: () => { model[path] = null; onChange(); render(); container.querySelector('button')?.focus(); } })))));
+            button(t.replace, { iconName: 'image', id, onClick: choose, 'aria-describedby': `${id}-error` }),
+            button(t.remove, { variant: 'ghost', iconName: 'trash', onClick: () => { model[path] = null; onChange(); render(); container.querySelector('button')?.focus(); } })))));
     }
-    container.append(errorSlot(path));
+    container.append(errorSlot(idPath));
   }
   render();
   return { el: container, render };

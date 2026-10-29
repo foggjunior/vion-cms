@@ -21,14 +21,46 @@ function setPath(obj, path, value) {
   keys.reduce((o, k) => o[k], obj)[last] = value;
 }
 
+// Persistence and validation for destinations, accommodations and tours. Other modules (site settings,
+// team profiles) supply their own adapter on `def.adapter` with the same shape; optional methods
+// (unpublish, archive, restore, duplicate, slug) switch the matching editor actions on.
+const CONTENT_ADAPTER = {
+  slug: true,
+  find: (ctx, id, def) => { const env = id ? ctx.records.get(id) : null; return env?.kind === def.kind ? env : null; },
+  newForm: (ctx, def) => recordToForm(newRecord(def.kind)),
+  toForm: env => recordToForm(env.record),
+  fromForm: form => formToRecord(form),
+  titleOf: record => record.title?.trim(),
+  validateDraft, validatePublish,
+  save: (ws, record, { expectedVersion, conversionIssues }) => ws.content.saveDraft(record, { expectedVersion, conversionIssues }),
+  publish: (ws, env) => ws.content.publish(env.id, { expectedVersion: env.record.version }),
+  unpublish: (ws, env) => ws.content.unpublish(env.id, { expectedVersion: env.record.version }),
+  archive: (ws, env) => ws.content.archive(env.id, { expectedVersion: env.record.version }),
+  restore: (ws, env) => ws.content.restore(env.id, { expectedVersion: env.record.version }),
+  duplicate: (ws, env) => ws.content.duplicate(env.id),
+  listHref: def => `#/${def.path}`,
+  editorHref: (def, id) => `#/${def.path}/${id}`,
+  previewHref: (def, env, rev) => `#/${def.path}/${env.id}/preview${rev ? `?rev=${rev}` : ''}`,
+  publishNotes(env, def) {
+    const route = routeFor(def.kind, env.record.slug);
+    const previous = env.workflow.lastPublishedRoute;
+    return previous && previous !== route ? [h('p', null, `The page address changes from ${previous} to ${route}. A local 308 redirect entry will be planned. No live website URL is changed.`)] : [];
+  },
+  archivedNote: env => `It is kept with its data and route history but is read-only and hidden from local preview. ${env.workflow.priorStatus ? `It was ${env.workflow.priorStatus} before archiving. ` : ''}Restore it to draft to edit; republishing is a separate step.`,
+  archiveBody: env => `${env.record.status === 'published' ? 'It will be removed from the local preview. ' : ''}The record, its images and its route history are kept. Archived records are read-only and keep their slug reserved. You can restore it to draft later.`
+};
+
 export async function createEditorView({ def, id, app }) {
+  const adapter = def.adapter || CONTENT_ADAPTER;
   const ws = await app.workspace();
   let ctx = await ws.loadContext();
-  let env = id ? ctx.records.get(id) || null : null;
-  if (id && (!env || env.kind !== def.kind)) return notFoundView(def);
+  let env = adapter.find(ctx, id, def);
+  if (id && !env) return notFoundView(def, adapter);
 
-  let model = recordToForm(env ? env.record : newRecord(def.kind));
+  let model = env ? adapter.toForm(env, ctx) : adapter.newForm(ctx, def);
   let baseline = JSON.stringify(model);
+  // Adapter-specific state captured when the record was loaded (for example the team lineup version).
+  let session = adapter.session?.(env, ctx) ?? null;
   let isNew = !env;
   let validationMode = null;
   let liveTimer = null;
@@ -37,7 +69,7 @@ export async function createEditorView({ def, id, app }) {
   let pendingFocusAction = null;
   const scope = new MediaUrlScope(ws.media);
   const readOnly = () => env?.record.status === 'archived';
-  let slugAuto = !model.slug && !(env?.workflow.routeHistory.length);
+  let slugAuto = !!adapter.slug && !model.slug && !(env?.workflow.routeHistory?.length);
 
   const root = h('div', { class: 'editor' });
   const titleEl = h('h1', { class: 'editor-title', tabindex: '-1' });
@@ -48,7 +80,7 @@ export async function createEditorView({ def, id, app }) {
   const summaryEl = h('div', { class: 'issue-summary', tabindex: '-1', hidden: true });
   const bar = h('div', { class: 'editor-bar' },
     h('div', { class: 'editor-bar-main' },
-      h('a', { class: 'back-link', href: `#/${def.path}` }, icon('back'), `All ${def.plural.toLowerCase()}`),
+      h('a', { class: 'back-link', href: adapter.listHref(def) }, icon('back'), def.backLabel || `All ${def.plural.toLowerCase()}`),
       titleEl, h('div', { class: 'editor-meta' }, badgesEl, statusEl)),
     actionsEl);
 
@@ -75,7 +107,8 @@ export async function createEditorView({ def, id, app }) {
 
   // ---- field binding helpers handed to section renderers ----
   const ed = {
-    def, get model() { return model; }, get ctx() { return ctx; }, get env() { return env; }, get readOnly() { return readOnly(); }, scope, changed,
+    def, adapter, get model() { return model; }, get ctx() { return ctx; }, get env() { return env; }, get readOnly() { return readOnly(); }, scope, changed,
+    selectTab(sectionId) { tabs.select(sectionId, true); },
     text(path, { label, hint, required, multiline, rows, placeholder, inputmode, wide, counter, onInput, list } = {}) {
       const fid = fieldIdFor(path);
       let counterEl = null;
@@ -178,7 +211,7 @@ export async function createEditorView({ def, id, app }) {
 
   // ---- header ----
   function renderBar() {
-    const recordTitle = model.title?.trim();
+    const recordTitle = adapter.titleOf(model);
     titleEl.textContent = recordTitle || (isNew ? `New ${kindLabel}` : `Untitled ${kindLabel}`);
     clear(badgesEl).append(env ? envelopeBadges(env) : h('span', { class: 'status-badge status-draft' }, 'Not saved yet'));
     if (!statusEl.dataset.state) setStatus('idle', readOnly() ? 'Archived — read only' : env ? `Saved ${formatDateTime(env.record.updatedAt)}` : 'Nothing entered yet');
@@ -198,10 +231,10 @@ export async function createEditorView({ def, id, app }) {
       }));
     }
     if (env) {
-      actionsEl.append(linkButton('Preview', `#/${def.path}/${env.id}/preview`, { iconName: 'eye', variant: 'ghost', 'data-action': 'preview' }));
-      actionsEl.append(button('Duplicate', { variant: 'ghost', iconName: 'copy', onClick: doDuplicate, disabled: busy, 'data-action': 'duplicate' }));
-      if (status === 'published') actionsEl.append(button('Unpublish', { variant: 'ghost', iconName: 'eye', onClick: doUnpublish, disabled: busy, 'data-action': 'unpublish' }));
-      if (status !== 'archived') actionsEl.append(button('Archive', { variant: 'ghost-danger', iconName: 'archive', onClick: doArchive, disabled: busy, 'data-action': 'archive' }));
+      actionsEl.append(linkButton('Preview', adapter.previewHref(def, env), { iconName: 'eye', variant: 'ghost', 'data-action': 'preview' }));
+      if (adapter.duplicate) actionsEl.append(button('Duplicate', { variant: 'ghost', iconName: 'copy', onClick: doDuplicate, disabled: busy, 'data-action': 'duplicate' }));
+      if (status === 'published' && adapter.unpublish) actionsEl.append(button('Unpublish', { variant: 'ghost', iconName: 'eye', onClick: doUnpublish, disabled: busy, 'data-action': 'unpublish' }));
+      if (status !== 'archived' && adapter.archive) actionsEl.append(button('Archive', { variant: 'ghost-danger', iconName: 'archive', onClick: doArchive, disabled: busy, 'data-action': 'archive' }));
     }
     if (focusedAction) {
       const target = actionsEl.querySelector(`[data-action="${focusedAction}"]`);
@@ -213,8 +246,9 @@ export async function createEditorView({ def, id, app }) {
 
   function renderBanners(extra = []) {
     clear(bannersEl);
-    if (readOnly()) bannersEl.append(notice('warning', h('strong', null, 'This record is archived. '), `It is kept with its data and route history but is read-only and hidden from local preview. ${env.workflow.priorStatus ? `It was ${env.workflow.priorStatus} before archiving. ` : ''}Restore it to draft to edit; republishing is a separate step.`));
+    if (readOnly()) bannersEl.append(notice('warning', h('strong', null, 'This record is archived. '), adapter.archivedNote(env)));
     if (env?.record.status === 'published' && hasUnpublishedChanges(env)) bannersEl.append(notice('info', 'The saved draft has changes that are not published. The local preview still shows the published snapshot until you choose “Publish changes”.'));
+    for (const node of adapter.banners?.(env, ctx) || []) bannersEl.append(node);
     for (const node of extra) bannersEl.append(node);
   }
 
@@ -277,19 +311,21 @@ export async function createEditorView({ def, id, app }) {
   }
 
   async function runValidation(mode, { focus = true } = {}) {
-    const { record, issues: conversionIssues } = formToRecord(model);
-    const issues = mode === 'publish' ? validatePublish(record, ctx, { conversionIssues }) : validateDraft(record, ctx, { conversionIssues });
+    const { record, issues: conversionIssues, extra } = adapter.fromForm(model);
+    const issues = mode === 'publish' ? adapter.validatePublish(record, ctx, { conversionIssues }) : adapter.validateDraft(record, ctx, { conversionIssues });
     applyIssues(issues, mode === 'publish' && hasErrors(issues) ? `Not ready to publish — ${errorsOnly(issues).length} problem${errorsOnly(issues).length === 1 ? '' : 's'} to fix` : null);
     if (focus && hasErrors(issues)) focusIssue(errorsOnly(issues)[0].path);
-    return { record, issues, conversionIssues };
+    return { record, issues, conversionIssues, extra };
   }
 
   // ---- persistence actions ----
   function rebuild(nextEnv) {
     env = nextEnv;
-    model = recordToForm(env.record);
+    isNew = false;
+    model = adapter.toForm(env, ctx);
     baseline = JSON.stringify(model);
-    slugAuto = !model.slug && !env.workflow.routeHistory.length;
+    session = adapter.session?.(env, ctx) ?? null;
+    slugAuto = !!adapter.slug && !model.slug && !env.workflow.routeHistory?.length;
     renderAllSections();
     renderBanners();
     renderBar();
@@ -299,7 +335,8 @@ export async function createEditorView({ def, id, app }) {
     env = nextEnv;
     const { version, updatedAt, createdAt, status } = nextEnv.record;
     Object.assign(model, { version, updatedAt, createdAt, status });
-    baseline = JSON.stringify(recordToForm(nextEnv.record));
+    baseline = JSON.stringify(adapter.toForm(nextEnv, ctx));
+    session = adapter.session?.(nextEnv, ctx) ?? null;
   }
 
   function handleError(err, action) {
@@ -308,7 +345,7 @@ export async function createEditorView({ def, id, app }) {
       applyIssues(err.issues);
       focusIssue(err.issues[0]?.path);
       setStatus('error', `Not ${action} — fix the highlighted fields.`);
-    } else if (err.code === 'stale') {
+    } else if (err.code === 'stale' || err.code === 'conflict') {
       setStatus('error', `Not ${action} — this record changed elsewhere.`);
       renderBanners([notice('error', h('strong', null, 'Your change was not saved. '), err.message, ' ', button('Reload latest version', { variant: 'secondary', onClick: reloadLatest }))]);
     } else if (err.code === 'dependency') {
@@ -326,7 +363,7 @@ export async function createEditorView({ def, id, app }) {
   async function reloadLatest() {
     if (isDirty() && !(await confirmDialog({ title: 'Discard your unsaved changes?', body: 'Reloading shows the latest stored version. Your unsaved edits in this form will be lost.', confirmLabel: 'Discard and reload', danger: true }))) return;
     ctx = await ws.loadContext();
-    const latest = ctx.records.get(model.id);
+    const latest = adapter.find(ctx, model.id, def);
     if (latest) { rebuild(latest); setStatus('idle', `Reloaded version ${latest.record.version}`); }
   }
 
@@ -344,7 +381,7 @@ export async function createEditorView({ def, id, app }) {
     try {
       ctx = await ws.loadContext();
       const submitted = JSON.stringify(model);
-      const { record, issues, conversionIssues } = await runValidation('draft');
+      const { record, issues, conversionIssues, extra } = await runValidation('draft');
       if (hasErrors(issues)) {
         busy = false;
         validationMode = 'draft';
@@ -353,7 +390,7 @@ export async function createEditorView({ def, id, app }) {
         return null;
       }
       setStatus('saving', 'Saving…');
-      const saved = await ws.content.saveDraft(record, { expectedVersion: isNew ? null : env.record.version, conversionIssues });
+      const saved = await adapter.save(ws, record, { expectedVersion: isNew ? null : env.record.version, conversionIssues, extra, session, isNew });
       busy = false;
       const wasNew = isNew;
       isNew = false;
@@ -367,11 +404,11 @@ export async function createEditorView({ def, id, app }) {
         renderBanners();
         renderBar();
       }
-      const warnings = validateDraft(saved.record, ctx).filter(i => i.severity === 'warning');
+      const warnings = adapter.validateDraft(saved.record, ctx).filter(i => i.severity === 'warning');
       applyIssues(warnings);
       setStatus('saved', `Draft saved ${formatTime(saved.record.updatedAt)}${saved.record.status === 'published' ? ' · published version unchanged' : ''}${isDirty() ? ' · newer edits not saved yet' : ''}`);
       if (wasNew) {
-        app.replaceRoute(`#/${def.path}/${saved.id}`);
+        app.replaceRoute(adapter.editorHref(def, saved.id));
         app.setNav({ breadcrumb: `${def.navGroup} / ${def.listLabel}`, navGroup: def.navGroup, navLabel: def.listLabel });
       }
       return saved;
@@ -387,7 +424,7 @@ export async function createEditorView({ def, id, app }) {
       if (!saved) return;
     }
     ctx = await ws.loadContext();
-    const issues = validatePublish(env.record, ctx);
+    const issues = adapter.validatePublish(env.record, ctx);
     validationMode = 'publish';
     if (hasErrors(issues)) {
       applyIssues(issues, `Not ready to publish — ${errorsOnly(issues).length} problem${errorsOnly(issues).length === 1 ? '' : 's'} to fix`);
@@ -395,22 +432,21 @@ export async function createEditorView({ def, id, app }) {
       setStatus('error', 'Not published — fix the listed problems.');
       return;
     }
-    const route = routeFor(def.kind, env.record.slug);
-    const previous = env.workflow.lastPublishedRoute;
+    const notes = adapter.publishNotes?.(env, def, ctx) || [];
     const warnings = issues.filter(i => i.severity === 'warning');
-    if ((previous && previous !== route) || warnings.length) {
+    if (notes.length || warnings.length) {
       const body = h('div', null,
-        previous && previous !== route ? h('p', null, `The page address changes from ${previous} to ${route}. A local 308 redirect entry will be planned. No live website URL is changed.`) : null,
+        notes,
         warnings.length ? h('div', null, h('p', null, 'These warnings do not block publishing:'), h('ul', { class: 'error-list' }, warnings.map(w => h('li', null, w.message)))) : null,
         h('p', null, 'Publishing makes this saved version visible in the local preview only.'));
-      if (!(await confirmDialog({ title: `Publish “${env.record.title}” locally?`, body, confirmLabel: 'Publish locally' }))) return;
+      if (!(await confirmDialog({ title: `Publish “${adapter.titleOf(env.record)}” locally?`, body, confirmLabel: 'Publish locally' }))) return;
     }
     busy = true;
     setStatus('saving', 'Publishing to local preview…');
     renderBar();
     try {
       const submitted = JSON.stringify(model);
-      const published = await ws.content.publish(env.id, { expectedVersion: env.record.version });
+      const published = await adapter.publish(ws, env);
       busy = false;
       ctx = await ws.loadContext();
       validationMode = null;
@@ -419,7 +455,7 @@ export async function createEditorView({ def, id, app }) {
       applyIssues(warnings);
       const redirect = published.redirectPlan?.add[0];
       setStatus('saved', `Published locally ${formatTime(published.workflow.lastPublishedAt)} (revision ${published.workflow.publishedRevision})`);
-      toast(redirect ? `Published locally. Planned local redirect ${redirect.from} → ${redirect.to}.` : 'Published to the local preview.');
+      toast(adapter.publishedToast?.(published, ctx) || (redirect ? `Published locally. Planned local redirect ${redirect.from} → ${redirect.to}.` : 'Published to the local preview.'));
     } catch (err) {
       handleError(err, 'published');
     }
@@ -427,11 +463,11 @@ export async function createEditorView({ def, id, app }) {
 
   async function doUnpublish() {
     if (isDirty()) { messageDialog({ title: 'Save or discard changes first', body: 'You have unsaved changes. Save the draft (or reload to discard) before unpublishing.' }); return; }
-    const ok = await confirmDialog({ title: `Unpublish “${env.record.title}”?`, body: 'The published snapshot is removed from the local preview. The record and its working draft are kept as a draft, and you can publish again later.', confirmLabel: 'Unpublish', danger: true });
+    const ok = await confirmDialog({ title: `Unpublish “${adapter.titleOf(env.record)}”?`, body: adapter.unpublishBody?.(env) || 'The published snapshot is removed from the local preview. The record and its working draft are kept as a draft, and you can publish again later.', confirmLabel: 'Unpublish', danger: true });
     if (!ok) return;
     busy = true;
     try {
-      const next = await ws.content.unpublish(env.id, { expectedVersion: env.record.version });
+      const next = await adapter.unpublish(ws, env);
       busy = false;
       ctx = await ws.loadContext();
       rebuild(next);
@@ -444,21 +480,16 @@ export async function createEditorView({ def, id, app }) {
 
   async function doArchive() {
     if (isDirty()) { messageDialog({ title: 'Save or discard changes first', body: 'You have unsaved changes. Save the draft (or reload to discard) before archiving.' }); return; }
-    const published = env.record.status === 'published';
-    const ok = await confirmDialog({
-      title: `Archive “${env.record.title}”?`,
-      body: `${published ? 'It will be removed from the local preview. ' : ''}The record, its images and its route history are kept. Archived records are read-only and keep their slug reserved. You can restore it to draft later.`,
-      confirmLabel: 'Archive', danger: true
-    });
+    const ok = await confirmDialog({ title: `Archive “${adapter.titleOf(env.record)}”?`, body: adapter.archiveBody(env), confirmLabel: 'Archive', danger: true });
     if (!ok) return;
     busy = true;
     try {
-      const next = await ws.content.archive(env.id, { expectedVersion: env.record.version });
+      const next = await adapter.archive(ws, env);
       busy = false;
       ctx = await ws.loadContext();
       rebuild(next);
       setStatus('saved', 'Archived.');
-      toast(`Archived “${next.record.title}”.`);
+      toast(`Archived “${adapter.titleOf(next.record)}”.`);
     } catch (err) {
       handleError(err, 'archived');
     }
@@ -467,7 +498,7 @@ export async function createEditorView({ def, id, app }) {
   async function doRestore() {
     busy = true;
     try {
-      const next = await ws.content.restore(env.id, { expectedVersion: env.record.version });
+      const next = await adapter.restore(ws, env);
       busy = false;
       ctx = await ws.loadContext();
       rebuild(next);
@@ -481,10 +512,10 @@ export async function createEditorView({ def, id, app }) {
   async function doDuplicate() {
     if (isDirty() && !(await confirmDialog({ title: 'Duplicate the last saved version?', body: 'The copy is made from the last saved draft; your unsaved changes here are not included.', confirmLabel: 'Duplicate saved version' }))) return;
     try {
-      const copy = await ws.content.duplicate(env.id);
-      toast(`Created draft copy “${copy.record.title}”.`);
+      const copy = await adapter.duplicate(ws, env);
+      toast(`Created draft copy “${adapter.titleOf(copy.record)}”.`);
       leaving = true;
-      app.navigate(`#/${def.path}/${copy.id}`);
+      app.navigate(adapter.editorHref(def, copy.id));
     } catch (err) {
       handleError(err, 'duplicated');
     }
@@ -505,7 +536,7 @@ export async function createEditorView({ def, id, app }) {
     el: root,
     title: titleEl.textContent,
     breadcrumb: `${def.navGroup} / ${isNew ? def.addLabel : def.listLabel}`,
-    navLabel: isNew ? def.addLabel : def.listLabel,
+    navLabel: isNew ? def.addNavLabel || def.addLabel : def.listLabel,
     navGroup: def.navGroup,
     isDirty: () => !leaving && isDirty(),
     mounted() { titleEl.focus({ preventScroll: true }); },
@@ -513,11 +544,11 @@ export async function createEditorView({ def, id, app }) {
   };
 }
 
-function notFoundView(def) {
+function notFoundView(def, adapter) {
   return {
     el: h('div', { class: 'panel empty-panel' }, icon('alert'), h('h1', { tabindex: '-1' }, `${def.label} not found`),
       h('p', null, 'This record does not exist in this browser’s local storage. It may have been created in another browser, or local data was cleared or replaced by an import.'),
-      linkButton(`Back to ${def.plural.toLowerCase()}`, `#/${def.path}`, { variant: 'primary' })),
+      linkButton(`Back to ${def.plural.toLowerCase()}`, adapter.listHref(def), { variant: 'primary' })),
     title: `${def.label} not found`, breadcrumb: `${def.navGroup} / ${def.listLabel}`, navLabel: def.listLabel, navGroup: def.navGroup
   };
 }
@@ -561,8 +592,9 @@ function seoSection(ed) {
 }
 
 function previewSection(ed) {
-  const { record, issues: conversionIssues } = formToRecord(ed.model);
-  const issues = validatePublish({ ...record, status: ed.env?.record.status === 'archived' ? 'archived' : 'draft' }, ed.ctx, { conversionIssues });
+  const { adapter, def } = ed;
+  const { record, issues: conversionIssues } = adapter.fromForm(ed.model);
+  const issues = adapter.validatePublish({ ...record, status: ed.env?.record.status === 'archived' ? 'archived' : 'draft' }, ed.ctx, { conversionIssues });
   const errors = errorsOnly(issues);
   const warnings = issues.filter(i => i.severity === 'warning');
   const env = ed.env;
@@ -579,9 +611,10 @@ function previewSection(ed) {
       h('h3', { class: 'group-title' }, 'Local previews'),
       h('p', { class: 'field-hint' }, 'Previews render the saved draft or the published snapshot — not unsaved form changes. Save first to preview your latest edits.'),
       env ? h('div', { class: 'btn-row' },
-        linkButton('Preview saved draft', `#/${ed.def.path}/${env.id}/preview?rev=draft`, { iconName: 'eye' }),
-        env.record.status === 'published' ? linkButton('Preview published snapshot', `#/${ed.def.path}/${env.id}/preview?rev=published`, { iconName: 'globe' }) : h('span', { class: 'muted' }, 'Not published — nothing is visible on the local preview site.'))
-        : h('p', { class: 'muted' }, 'Save the draft to enable previews.'))
+        linkButton('Preview saved draft', adapter.previewHref(def, env, 'draft'), { iconName: 'eye' }),
+        env.record.status === 'published' ? linkButton('Preview published snapshot', adapter.previewHref(def, env, 'published'), { iconName: 'globe' }) : h('span', { class: 'muted' }, 'Not published — nothing is visible on the local preview site.'))
+        : h('p', { class: 'muted' }, 'Save the draft to enable previews.')),
+    ...(adapter.previewExtras?.(ed) || [])
   ];
 }
 

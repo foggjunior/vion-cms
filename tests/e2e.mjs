@@ -138,7 +138,8 @@ await check('Sidebar list/Add entries open the working modules', async () => {
   const pairs = [['Tour Packages', 'Tours List', '#/tours', 'Tours'], ['Tour Packages', 'Add Tour', '#/tours/new', 'New tour'], ['Destinations', 'Destinations List', '#/destinations', 'Destinations'], ['Destinations', 'Add Destination', '#/destinations/new', 'New destination'], ['Accommodations', 'Accommodations List', '#/accommodations', 'Accommodations'], ['Accommodations', 'Add Accommodation', '#/accommodations/new', 'New accommodation']];
   for (const [group, item, hash, heading] of pairs) {
     await openNav(page, group, item);
-    await page.waitForSelector('#moduleRoot h1');
+    // Wait for this route's render; the previous view's h1 is still present until then.
+    await page.waitForFunction(h => { const root = document.getElementById('moduleRoot'); return root.dataset.ready === 'true' && root.dataset.renderedRoute === h; }, hash, { timeout: 10000 });
     expect(await page.evaluate(() => location.hash) === hash, `${item} → ${await page.evaluate(() => location.hash)}`);
     expect((await page.locator('#moduleRoot h1').first().textContent()).trim() === heading, `${item} heading`);
   }
@@ -348,7 +349,8 @@ await check('Pricing: manual per group/person/vehicle render distinctly; zero di
   await page.fill('#f-pricing-amount', '0');
   expect(/From USD\s0 per group/.test(await text('.price-display')), await text('.price-display'));
   await page.click('[data-action="publish"]');
-  await page.waitForSelector('.issue-summary.has-errors');
+  // The earlier draft-error summary is still on screen until publish validation replaces it.
+  await page.waitForFunction(() => /Not ready to publish/.test(document.querySelector('.issue-summary')?.textContent || ''), null, { timeout: 10000 });
   expect(/what the “from” price applies to/.test(await text('.issue-summary')), 'applicability not required');
   await page.fill('#f-pricing-applicability', 'Whole private vehicle, up to 6 guests, low season.');
   await publish();
@@ -544,7 +546,7 @@ await check('JSON export states binary exclusion; media backup is separate', asy
   dataFile = join(outDir, 'data.json');
   await d1.saveAs(dataFile);
   const data = JSON.parse(readFileSync(dataFile, 'utf8'));
-  expect(data.format === 'vion-cms-local-backup' && data.schemasVersion === 1 && data.binaryAssetsIncluded === false && /does NOT contain image files/.test(data.notice), 'data backup header');
+  expect(data.format === 'vion-cms-local-backup' && data.schemasVersion === 2 && data.binaryAssetsIncluded === false && /does NOT contain image files/.test(data.notice), 'data backup header');
   expect(data.records.length >= 6 && data.assets.length === 1 && !JSON.stringify(data).includes('dataBase64'), 'data backup contents');
   const [d2] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Download media backup/ }).click()]);
   mediaFile = join(outDir, 'media.json');
@@ -609,6 +611,363 @@ await check('Invalid image uploads (SVG, fake image) are rejected in the picker'
   const out = await text('.upload-results');
   expect(/SVG files are not accepted/.test(out) && /not a JPEG, PNG or WebP/.test(out), out);
 });
+
+// ---- 8b. Site settings and team ----
+async function uploadInto(selector, fileName, width = 1200, height = 1200) {
+  await page.locator(selector).first().click();
+  await page.waitForSelector('dialog[open]');
+  await page.setInputFiles('#media-upload-input', { name: fileName, mimeType: 'image/png', buffer: await makeImage(width, height) });
+  await page.waitForSelector('dialog[open] .upload-results');
+  await dialogButton('Use image');
+}
+async function reuseInto(selector, fileName) {
+  await page.locator(selector).first().click();
+  await page.waitForSelector('dialog[open] .asset-tile');
+  await page.locator('dialog[open] .asset-tile', { hasText: fileName }).first().click();
+  await dialogButton('Use image');
+}
+const gridNames = (target = page) => target.$$eval('.team-grid .team-card h3', els => els.map(e => e.textContent));
+const tableNames = () => page.$$eval('.team-table tbody .cell-title a', els => els.map(e => e.textContent));
+async function waitTableOrder(names) {
+  await page.waitForFunction(expected => JSON.stringify([...document.querySelectorAll('.team-table tbody .cell-title a')].map(a => a.textContent)) === JSON.stringify(expected), names, { timeout: 10000 });
+}
+async function publishOrder() {
+  await page.click('[data-action="publish-lineup"]');
+  await page.waitForSelector('dialog[open]');
+  await dialogButton('Publish order & visibility');
+  await page.waitForSelector('[data-action="publish-lineup"][disabled]', { timeout: 10000 });
+}
+
+await check('Settings submenu keeps Setting Options and adds Team; both open working screens; account Settings works', async () => {
+  await open('#/dashboard');
+  expect(await page.locator('.nav-toggle').count() === 15, 'sidebar groups changed');
+  const settingsItems = await page.locator('.nav-group', { has: page.locator('.nav-toggle', { hasText: 'Settings' }) }).locator('.submenu button').allTextContents();
+  expect(JSON.stringify(settingsItems) === JSON.stringify(['Setting Options', 'Team']), JSON.stringify(settingsItems));
+  await openNav(page, 'Settings', 'Setting Options');
+  await page.waitForSelector('#f-company-name');
+  expect(await page.evaluate(() => location.hash) === '#/settings', 'Setting Options route');
+  await openNav(page, 'Settings', 'Team');
+  await page.waitForSelector('.lineup-panel');
+  expect(await page.evaluate(() => location.hash) === '#/team' && (await text('#moduleRoot h1')) === 'Team', 'Team route');
+  expect(await page.locator('.submenu button.selected', { hasText: 'Team' }).count() === 1, 'Team not highlighted');
+  await open('#/dashboard');
+  await page.click('#accountButton');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.waitForSelector('#f-company-name');
+});
+
+await check('Settings: empty draft; invalid values show field errors, a summary and focus; edits are kept; reload persists', async () => {
+  await open('#/settings');
+  expect(/Nothing entered yet/.test(await status()), await status());
+  expect(await page.inputValue('#f-company-timezone') === 'Africa/Dar_es_Salaam', 'default timezone');
+  expect(await page.inputValue('#f-company-name') === '', 'company name prefilled');
+  await page.fill('#f-company-name', 'Example Safari Co');
+  await tab('Contact');
+  await page.fill('#f-contact-email', 'not-an-email');
+  await page.fill('#f-contact-mapsUrl', 'javascript:alert(1)');
+  await save();
+  expect(/Not saved/.test(await status()), await status());
+  expect(await page.evaluate(() => document.activeElement.id) === 'f-contact-email', `focused ${await page.evaluate(() => document.activeElement.id)}`);
+  expect(/public email/.test(await text('#f-contact-email-error')) && /https/.test(await text('#f-contact-mapsUrl-error')), 'field errors');
+  expect(await page.locator('.issue-summary.has-errors').count() === 1, 'no error summary');
+  await tab('Company');
+  expect(await page.inputValue('#f-company-name') === 'Example Safari Co', 'edit lost after failed save');
+  await tab('Contact');
+  await page.fill('#f-contact-email', 'info@example.com');
+  await page.fill('#f-contact-mapsUrl', '');
+  await save();
+  expect(/Draft saved/.test(await status()), await status());
+  await page.reload();
+  await page.waitForSelector('#f-company-name');
+  expect(await page.inputValue('#f-company-name') === 'Example Safari Co' && await page.evaluate(() => location.hash) === '#/settings', 'not persisted');
+});
+
+await check('Settings: publish minimum listed; bundled logo + sharing image; publish locally; footer links; draft vs published preview', async () => {
+  await page.click('[data-action="publish"]');
+  await page.waitForFunction(() => /Not ready to publish/.test(document.querySelector('.issue-summary')?.textContent || ''), null, { timeout: 10000 });
+  const summary = await text('.issue-summary');
+  for (const part of ['office address', 'primary public telephone', 'at least one usable logo', 'sharing image']) expect(summary.includes(part), `missing “${part}” in ${summary}`);
+  expect(!/tagline|emergency/i.test(summary), 'optional fields required');
+  await tab('Company');
+  await page.fill('#f-company-officeAddress', '1 Example Road\nArusha');
+  await page.fill('#f-company-tagline', 'Example tagline');
+  await tab('Contact');
+  await page.fill('#f-contact-primaryPhone', '+255 700 000 000');
+  await tab('Branding');
+  await page.locator('#f-branding-logoLight').locator('xpath=ancestor::div[contains(@class,"media-field")]').getByRole('button', { name: 'Use bundled Vion logo' }).click();
+  expect(await page.inputValue('#f-branding-logoLight-alt') === 'Vion Africa Travel', 'bundled logo alt');
+  await uploadInto('#f-branding-shareImage', 'share.png', 1200, 630);
+  await tab('Social');
+  await page.getByRole('button', { name: 'Add Instagram' }).click();
+  await page.fill('#f-social-0-url', 'https://www.instagram.com/example');
+  await tab('Review');
+  await page.getByRole('button', { name: 'Add review link' }).click();
+  await page.fill('#f-reviews-0-platform', 'Example Reviews');
+  await page.fill('#f-reviews-0-url', 'https://reviews.example.com/vion');
+  await page.fill('#f-reviews-0-buttonLabel', 'Read our reviews');
+  await publish();
+  expect(/Published locally/.test(await status()), await status());
+  await open('#/site');
+  await page.waitForSelector('.company-summary');
+  expect(/Example Safari Co/.test(await text('.company-summary')), 'company summary');
+  const footerLinks = await page.$$eval('.site-footer a', as => as.map(a => [a.textContent, a.getAttribute('href')]));
+  expect(footerLinks.some(([t, h]) => h === 'tel:+255700000000') && footerLinks.some(([t, h]) => t === 'Instagram' && h === 'https://www.instagram.com/example') && footerLinks.some(([t, h]) => t === 'Read our reviews'), JSON.stringify(footerLinks));
+  await page.waitForFunction(() => document.querySelector('.site-footer img')?.getAttribute('src') === 'assets/logo-dark.svg', null, { timeout: 5000 });
+  await open('#/settings');
+  await page.fill('#f-company-name', 'DRAFT Name Co');
+  await save();
+  expect(/published version unchanged/.test(await status()), await status());
+  await open('#/settings/preview?rev=published');
+  expect(/Example Safari Co/.test(await text('.preview-frame')) && !/DRAFT Name Co/.test(await text('.preview-frame')), 'published preview changed by draft');
+  expect(/NOT shown here/.test(await page.locator('#moduleRoot .notice-info').first().innerText()), 'unpublished-changes notice');
+  await open('#/settings/preview?rev=draft');
+  expect(/DRAFT Name Co/.test(await text('.preview-frame')), 'draft preview');
+  expect(/Production metadata and the live website are not fetched or changed/.test(await text('.preview-frame')), 'SEO disclaimer');
+  await open('#/site');
+  expect(!/DRAFT Name Co/.test(await text('#moduleRoot')), 'local site shows unpublished settings draft');
+});
+
+await check('Settings: duplicate visible networks and unsafe social links are rejected at save', async () => {
+  await open('#/settings');
+  await tab('Social');
+  await page.getByRole('button', { name: 'Add Instagram' }).click();
+  await page.fill('#f-social-1-url', 'javascript:alert(1)');
+  await save();
+  expect(/Not saved/.test(await status()), await status());
+  expect(/duplicate visible networks/.test(await text('#f-social-1-network-error')) && /rejected for safety/.test(await text('#f-social-1-url-error')), 'social errors');
+  await page.getByRole('button', { name: /Remove Social profile 2/ }).click();
+  await dialogButton('Remove');
+  expect(!(await page.evaluate(() => window.__vionApp.currentView().isDirty())), 'removing the extra entry should leave nothing to save');
+});
+
+await check('Settings editor: unsaved changes guard for navigation and Back; cancel keeps the form', async () => {
+  await open('#/team');
+  await open('#/settings');
+  await page.fill('#f-company-tagline', 'Unsaved tagline');
+  await openNav(page, 'Settings', 'Team');
+  await page.waitForSelector('dialog[open]');
+  await dialogButton('Stay and keep editing');
+  expect(await page.inputValue('#f-company-tagline') === 'Unsaved tagline' && await page.evaluate(() => location.hash) === '#/settings', 'form lost after Stay');
+  await page.goBack();
+  await page.waitForSelector('dialog[open]');
+  await dialogButton('Stay and keep editing');
+  expect(await page.inputValue('#f-company-tagline') === 'Unsaved tagline', 'form lost after Back');
+  await page.locator('.submenu button', { hasText: 'Team' }).click();
+  await dialogButton('Leave and discard changes');
+  await page.waitForSelector('.lineup-panel');
+  await open('#/settings');
+  expect(await page.inputValue('#f-company-tagline') === 'Example tagline', 'discarded edit persisted');
+});
+
+const teamIds = {};
+await check('Team: create profiles with portraits and alt text, save, reload and publish profile content', async () => {
+  for (const [i, name] of ['Asha Example', 'Baraka Example', 'Chausiku Example'].entries()) {
+    await open('#/team/new');
+    await page.fill('#f-name', name);
+    await page.fill('#f-position', 'Safari planner');
+    await page.fill('#f-bio', `${name} plans safaris.\n\nSecond paragraph.`);
+    await tab('Portrait');
+    if (i === 0) await uploadInto('#f-portrait', 'asha.png', 800, 1000);
+    else await reuseInto('#f-portrait', 'asha.png');
+    await page.fill('#f-portrait-alt', `Portrait of ${name}`);
+    await save();
+    expect(/Draft saved/.test(await status()), await status());
+    teamIds[name] = await currentId();
+    expect(/^[0-9a-f-]{36}$/.test(teamIds[name]), `URL not updated: ${teamIds[name]}`);
+  }
+  await page.reload();
+  await page.waitForSelector('#f-name');
+  expect(await page.inputValue('#f-name') === 'Chausiku Example', 'profile lost after reload');
+  for (const name of Object.keys(teamIds)) {
+    await open(`#/team/${teamIds[name]}`);
+    await publish();
+    expect(/Published locally/.test(await status()), `${name}: ${await status()}`);
+  }
+  expect(/not in the published team order|appears on the local team page once/.test(await text('.editor-banners') + await page.locator('#toast').textContent()), 'two-step publication not explained');
+  await open('#/site/team');
+  expect((await gridNames()).length === 0, 'profiles shown before the order was published');
+});
+
+await check('Team: keyboard Move up/down keeps focus; published page changes only after “Publish order & visibility”', async () => {
+  await open('#/team');
+  await waitTableOrder(['Asha Example', 'Baraka Example', 'Chausiku Example']);
+  await publishOrder();
+  await open('#/site/team');
+  expect(JSON.stringify(await gridNames()) === JSON.stringify(['Asha Example', 'Baraka Example', 'Chausiku Example']), JSON.stringify(await gridNames()));
+  await open('#/team');
+  await page.getByRole('button', { name: 'Move Chausiku Example up' }).focus();
+  await page.keyboard.press('Enter');
+  await waitTableOrder(['Asha Example', 'Chausiku Example', 'Baraka Example']);
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Move Chausiku Example up', null, { timeout: 5000 });
+  await page.keyboard.press('Enter');
+  await waitTableOrder(['Chausiku Example', 'Asha Example', 'Baraka Example']);
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Move Chausiku Example down', null, { timeout: 5000 });
+  expect(/Unpublished order changes/.test(await text('.lineup-panel')), 'draft order change not flagged');
+  await open('#/site/team');
+  expect(JSON.stringify(await gridNames()) === JSON.stringify(['Asha Example', 'Baraka Example', 'Chausiku Example']), 'published order changed before publishing');
+  await open('#/team/preview?rev=draft');
+  expect(JSON.stringify(await gridNames()) === JSON.stringify(['Chausiku Example', 'Asha Example', 'Baraka Example']), 'draft team preview order');
+  await open('#/team');
+  await page.getByLabel('Show Baraka Example on the team page (draft)').uncheck();
+  await page.waitForFunction(() => /Draft team order saved/.test(document.querySelector('.lineup-panel .save-status')?.textContent || ''), null, { timeout: 5000 });
+  await publishOrder();
+  await open('#/site/team');
+  expect(JSON.stringify(await gridNames()) === JSON.stringify(['Chausiku Example', 'Asha Example']), JSON.stringify(await gridNames()));
+});
+
+await check('Team: profile draft edits are not published by order changes; unpublish and archive remove profiles; restore needs republish', async () => {
+  await open(`#/team/${teamIds['Asha Example']}`);
+  await page.fill('#f-bio', 'DRAFT ONLY biography.');
+  await save();
+  expect(/published version unchanged/.test(await status()), await status());
+  await open('#/team');
+  await page.getByRole('button', { name: 'Move Asha Example up' }).click();
+  await waitTableOrder(['Asha Example', 'Chausiku Example', 'Baraka Example']);
+  await publishOrder();
+  await open(`#/site/team/${teamIds['Asha Example']}`);
+  await page.waitForSelector('.member-page');
+  const body = await text('.member-page');
+  expect(/Asha Example plans safaris/.test(body) && !/DRAFT ONLY/.test(body), 'publishing the order published a profile draft');
+  await open(`#/team/${teamIds['Asha Example']}`);
+  await page.getByRole('button', { name: 'Unpublish' }).click();
+  await dialogButton('Unpublish');
+  await page.waitForFunction(() => /Unpublished/.test(document.querySelector('.save-status').textContent), null, { timeout: 10000 });
+  await open('#/site/team');
+  expect(JSON.stringify(await gridNames()) === JSON.stringify(['Chausiku Example']), JSON.stringify(await gridNames()));
+  await open('#/team');
+  await page.getByRole('button', { name: 'Archive Chausiku Example' }).click();
+  await dialogButton('Archive');
+  await page.getByRole('button', { name: 'Archive Chausiku Example' }).waitFor({ state: 'detached' });
+  await open('#/site/team');
+  expect((await gridNames()).length === 0 && /No profiles to show/.test(await text('#moduleRoot')), 'archived profile still shown');
+  await open('#/team?status=archived');
+  await page.getByRole('button', { name: 'Restore Chausiku Example to draft' }).click();
+  await page.getByRole('button', { name: 'Restore Chausiku Example to draft' }).waitFor({ state: 'detached' });
+  await open(`#/team/${teamIds['Chausiku Example']}`);
+  expect((await text('.editor-badges')).includes('Draft') && /not published/.test(await text('.editor-banners')), 'restored profile not a draft');
+});
+
+await check('Team: unsafe links rejected with focus; biography and names shown as text, never executed', async () => {
+  await open('#/team/new');
+  await page.fill('#f-name', '<img src=x onerror="window.__xss=3">Tester');
+  await page.fill('#f-bio', '<script>window.__xss=4</script> plain text');
+  await tab('Links');
+  await page.getByRole('button', { name: 'Add link' }).click();
+  await page.fill('#f-links-0-label', 'Profile');
+  await page.fill('#f-links-0-url', 'javascript:alert(1)');
+  await save();
+  expect(/Not saved/.test(await status()) && await page.evaluate(() => document.activeElement.id) === 'f-links-0-url', `status ${await status()}`);
+  expect(/rejected for safety/.test(await text('#f-links-0-url-error')), 'link error');
+  await page.fill('#f-links-0-url', 'https://www.example.com/profile');
+  await save();
+  const id = await currentId();
+  await open(`#/team/${id}/preview`);
+  await page.waitForSelector('.member-page');
+  const body = await text('.member-page');
+  expect(body.includes('<img src=x onerror="window.__xss=3">Tester') && body.includes('<script>window.__xss=4</script>'), 'markup not literal');
+  expect(await page.evaluate(() => window.__xss === undefined && !document.querySelector('img[src="x"]')), 'markup executed');
+  expect(JSON.stringify(await page.$$eval('.member-page a', as => as.map(a => a.getAttribute('href')))) === '["https://www.example.com/profile"]', 'links');
+  await open('#/team');
+  await page.getByRole('button', { name: /Archive <img/ }).click();
+  await dialogButton('Archive');
+  await page.getByRole('button', { name: /Archive <img/ }).waitFor({ state: 'detached' });
+});
+
+await check('Media: portraits and settings images in use cannot be deleted', async () => {
+  await open('#/media');
+  await page.waitForSelector('.library-card');
+  for (const fileName of ['asha.png', 'share.png']) {
+    const card = page.locator('.library-card', { hasText: fileName });
+    expect(await card.getByRole('button', { name: 'Delete' }).isDisabled(), `${fileName} deletable while used`);
+  }
+  const usage = await page.locator('.library-card', { hasText: 'asha.png' }).locator('.usage').textContent();
+  expect(/Team profile “Asha Example”/.test(usage) && /portrait, published snapshot|portrait, working draft/.test(usage), usage);
+  const shareUsage = await page.locator('.library-card', { hasText: 'share.png' }).locator('.usage').textContent();
+  expect(/Site settings/.test(shareUsage) && /default sharing image/.test(shareUsage), shareUsage);
+});
+
+await check('Backup: data + media round-trip restores settings, team order and portraits; an older backup keeps site data', async () => {
+  await open('#/backup');
+  await page.waitForSelector('.storage-status p');
+  expect(/Site settings: saved and published/.test(await text('.storage-status')), await text('.storage-status'));
+  const [d1] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Download data backup/ }).click()]);
+  const siteData = join(outDir, 'site-data.json');
+  await d1.saveAs(siteData);
+  const [d2] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Download media backup/ }).click()]);
+  const siteMedia = join(outDir, 'site-media.json');
+  await d2.saveAs(siteMedia);
+  const data = JSON.parse(readFileSync(siteData, 'utf8'));
+  expect(data.schemasVersion === 2 && data.siteRecords.length === 6 && data.sitePublished.some(p => p.id === 'team-lineup'), `site collections: ${data.siteRecords.length}`);
+  const fresh = await newContext();
+  const p2 = watch(await fresh.newPage());
+  await p2.goto(`${base}/#/backup`);
+  await p2.waitForSelector('#import-data-file', { state: 'attached' });
+  await p2.setInputFiles('#import-data-file', siteData);
+  await p2.waitForSelector('dialog[open]');
+  expect(/site settings, \d+ team profiles?/.test(await p2.locator('dialog[open]').innerText()), 'confirm does not mention site data');
+  await p2.locator('dialog[open]').getByRole('button', { name: 'Replace local content' }).click();
+  await p2.waitForSelector('text=Import complete');
+  await p2.setInputFiles('#import-media-file', siteMedia);
+  await p2.waitForSelector('text=Media restored');
+  await open('#/site/team', p2);
+  const restored = await gridNames(p2);
+  expect(restored.length === 0, `published team page should match the source (no published, visible profiles): ${JSON.stringify(restored)}`);
+  await open('#/team/preview?rev=draft', p2);
+  expect(JSON.stringify(await gridNames(p2)) === JSON.stringify(['Asha Example', 'Baraka Example', 'Chausiku Example']), `draft order not restored: ${JSON.stringify(await gridNames(p2))}`);
+  await p2.waitForFunction(() => [...document.querySelectorAll('.team-grid img')].length > 0 && [...document.querySelectorAll('.team-grid img')].every(img => img.naturalWidth > 0), null, { timeout: 5000 });
+  await open('#/site', p2);
+  expect(/Example Safari Co/.test(await p2.locator('.company-summary').innerText()), 'published settings not restored');
+  await open('#/settings', p2);
+  expect(await p2.inputValue('#f-company-name') === 'DRAFT Name Co', 'settings draft not restored');
+  // An older (schemasVersion 1) backup: the confirm explains that settings and team are kept.
+  const legacy = JSON.parse(readFileSync(dataFile, 'utf8'));
+  delete legacy.siteRecords; delete legacy.sitePublished; legacy.schemasVersion = 1;
+  const legacyFile = join(outDir, 'legacy-v1.json');
+  writeFileSync(legacyFile, JSON.stringify(legacy));
+  await open('#/backup', p2);
+  await p2.setInputFiles('#import-data-file', legacyFile);
+  await p2.waitForSelector('dialog[open]');
+  expect(/made before Site Settings and Team existed/.test(await p2.locator('dialog[open]').innerText()), 'legacy notice missing');
+  await p2.locator('dialog[open]').getByRole('button', { name: 'Replace local content' }).click();
+  await p2.waitForSelector('text=Import complete');
+  expect(/Kept 6 site records/.test(await p2.locator('#moduleRoot').innerText()), await p2.locator('#moduleRoot .notice-success').innerText());
+  await open('#/settings', p2);
+  expect(await p2.inputValue('#f-company-name') === 'DRAFT Name Co', 'legacy import removed settings');
+  await open('#/team/preview?rev=draft', p2);
+  await p2.waitForFunction(() => [...document.querySelectorAll('.team-grid img')].length > 0 && [...document.querySelectorAll('.team-grid img')].every(img => img.naturalWidth > 0), null, { timeout: 5000 });
+  await fresh.close();
+});
+
+await check('Mobile: settings, team list and local site fit 390px; ordering buttons work', async () => {
+  const mobile = await newContext({ width: 390, height: 844 });
+  const m = watch(await mobile.newPage());
+  await m.goto(`${base}/`);
+  await m.click('#menuButton');
+  await openNav(m, 'Settings', 'Setting Options');
+  await m.waitForSelector('#f-company-name');
+  expect(await m.locator('#sidebar.open').count() === 0, 'sidebar did not close');
+  expect(await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) <= 0, 'settings page overflows');
+  await m.getByRole('tab', { name: 'Branding' }).click();
+  expect(await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) <= 0, 'branding tab overflows');
+  await m.screenshot({ path: join(outDir, 'mobile-settings.png') });
+  for (const name of ['Mobile One', 'Mobile Two']) {
+    await open('#/team/new', m);
+    await m.fill('#f-name', name);
+    await m.click('[data-action="save"]');
+    await m.waitForSelector('.save-status[data-state="saved"]');
+  }
+  await open('#/team', m);
+  await m.waitForSelector('.team-table');
+  await m.getByRole('button', { name: 'Move Mobile Two up' }).click();
+  await m.waitForFunction(() => document.querySelector('.team-table tbody .cell-title a')?.textContent === 'Mobile Two', null, { timeout: 5000 });
+  expect(await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) <= 0, 'team list overflows');
+  expect(await m.evaluate(() => getComputedStyle(document.querySelector('#moduleRoot .table-scroll')).overflowX) === 'auto', 'team table does not scroll');
+  await m.screenshot({ path: join(outDir, 'mobile-team.png') });
+  await open('#/site', m);
+  expect(await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) <= 0, 'local site overflows');
+  await mobile.close();
+});
+await page.screenshot({ path: join(outDir, 'desktop-team.png') });
 
 // ---- 9. Mobile ----
 await check('Narrow mobile: sidebar menu works, forms fit without page-level horizontal scroll, tables scroll', async () => {

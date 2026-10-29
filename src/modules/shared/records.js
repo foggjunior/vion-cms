@@ -1,5 +1,6 @@
 // Record factories, form conversion and reference helpers shared by the UI and the repositories.
 import { newId } from './format.js';
+import { SITE_KIND_LABELS, editorHref, siteAssetRefs, siteRecordTitle } from './site.js';
 
 export const KINDS = Object.freeze(['destination', 'accommodation', 'tour']);
 export const KIND_LABELS = Object.freeze({ destination: 'Destination', accommodation: 'Accommodation', tour: 'Tour' });
@@ -178,8 +179,10 @@ export const compareOptionalNumber = key => (a, b) => {
 
 export const hasUnpublishedChanges = env => env.record.status === 'published' && env.workflow.publishedSourceVersion !== env.record.version;
 
-// Builds the lookup context used by validation, from plain arrays read out of storage.
-export function makeContext({ records = [], published = [], redirects = [], assets = [], blobKeys = [], taxonomies = [], validator = null }) {
+// Builds the lookup context used by validation, from plain arrays read out of storage. Site settings, team
+// profiles and the team lineup (siteRecords/sitePublished) are kept apart from content records so slug,
+// route, redirect and content-dependency rules never see them.
+export function makeContext({ records = [], published = [], redirects = [], assets = [], blobKeys = [], taxonomies = [], siteRecords = [], sitePublished = [], validator = null, siteValidator = null }) {
   const blobs = new Set(blobKeys);
   return {
     records: new Map(records.map(env => [env.id, env])),
@@ -187,7 +190,10 @@ export function makeContext({ records = [], published = [], redirects = [], asse
     redirects,
     assets: new Map(assets.map(a => [a.id, { ...a, hasBlob: blobs.has(a.id) }])),
     taxonomies: new Map(taxonomies.map(t => [t.id, t])),
-    validator
+    siteRecords: new Map(siteRecords.map(env => [env.id, env])),
+    sitePublished: new Map(sitePublished.map(p => [p.id, p])),
+    validator,
+    siteValidator
   };
 }
 
@@ -204,13 +210,21 @@ export function dependentsOf(id, ctx) {
   return { published, drafts };
 }
 
+// Every working draft and published snapshot (content, site settings and team profiles) that uses an asset.
 export function assetUsage(assetId, ctx) {
   const usage = [];
+  const add = (kind, recordId, title, where, role) => usage.push({ recordId, kind, title, where, role, label: `${KIND_LABELS[kind] || SITE_KIND_LABELS[kind]} “${title}”`, href: editorHref(kind, recordId) });
   for (const env of ctx.records.values()) {
-    for (const ref of assetRefs(env.record)) if (ref.assetId === assetId) usage.push({ recordId: env.id, kind: env.kind, title: env.record.title, where: 'working draft', role: ref.role });
+    for (const ref of assetRefs(env.record)) if (ref.assetId === assetId) add(env.kind, env.id, env.record.title, 'working draft', ref.role);
   }
   for (const pub of ctx.published.values()) {
-    for (const ref of assetRefs(pub.snapshot)) if (ref.assetId === assetId) usage.push({ recordId: pub.id, kind: pub.kind, title: pub.snapshot.title, where: 'published snapshot', role: ref.role });
+    for (const ref of assetRefs(pub.snapshot)) if (ref.assetId === assetId) add(pub.kind, pub.id, pub.snapshot.title, 'published snapshot', ref.role);
+  }
+  for (const env of ctx.siteRecords?.values() || []) {
+    for (const ref of siteAssetRefs(env.record)) if (ref.assetId === assetId) add(env.kind, env.id, siteRecordTitle(env.record), 'working draft', ref.role);
+  }
+  for (const pub of ctx.sitePublished?.values() || []) {
+    for (const ref of siteAssetRefs(pub.snapshot)) if (ref.assetId === assetId) add(pub.kind, pub.id, siteRecordTitle(pub.snapshot), 'published snapshot', ref.role);
   }
   return usage;
 }

@@ -160,7 +160,8 @@ test('backup: data and media exports round-trip into an empty workspace', () => 
   const media = JSON.parse(JSON.stringify(await source.backup.exportMedia()));
   assertEqual([data.binaryAssetsIncluded, /does NOT contain image files/.test(data.notice), media.binaryAssetsIncluded], [false, true, true]);
   await withWorkspace(async target => {
-    assertEqual(await target.backup.importData(data), { records: 2, published: 1, redirects: 1, taxonomies: 1, assets: 1 });
+    const applied = await target.backup.importData(data);
+    assertEqual([applied.records, applied.published, applied.redirects, applied.taxonomies, applied.assets, applied.schemasVersion], [2, 1, 1, 1, 1, 2]);
     const ctx = await target.loadContext();
     assertEqual(ctx.assets.get(img.id).hasBlob, false, 'data backup alone restores metadata only');
     assertEqual(ctx.published.get(dest.id).route, '/destinations/serengeti');
@@ -183,7 +184,7 @@ test('backup: unsafe or inconsistent imports are rejected completely and change 
   const acc = { id: crypto.randomUUID(), kind: 'accommodation', record: null, workflow: base.records[0].workflow };
   acc.record = { ...newRecord('accommodation', { id: acc.id, title: 'Bad link' }), website: 'javascript:alert(document.cookie)' };
   await attempt(d => d.records.push(acc), /rejected for safety/);
-  await attempt(d => { d.schemasVersion = 2; }, /schemasVersion/);
+  await attempt(d => { d.schemasVersion = 3; }, /schemasVersion/);
   await attempt(d => { d.records[0].record.status = 'published'; }, /no published snapshot/);
   await attempt(d => { d.records[0].record.extra = '<script>'; }, /not an allowed field/);
   await attempt(d => d.assets.push({ id: crypto.randomUUID(), fileName: 'x.svg', type: 'image/svg+xml', size: 10, width: 1, height: 1, alt: '', credit: '', caption: '', createdAt: base.exportedAt, updatedAt: base.exportedAt, version: 1 }), /SVG/);

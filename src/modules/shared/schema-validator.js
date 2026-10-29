@@ -87,6 +87,10 @@ export function createSchemaValidator(schema) {
     if (Array.isArray(value) && node.items) value.forEach((item, i) => check(node.items, item, join(path, i), errors));
   }
 
+  // Record kinds are the definitions referenced by the root oneOf (helper $defs such as placements are not kinds).
+  const kinds = (schema.oneOf || []).map(branch => branch.$ref?.replace('#/$defs/', '')).filter(Boolean);
+  const kindList = kinds.length > 1 ? `${kinds.slice(0, -1).join(', ')} or ${kinds.at(-1)}` : kinds.join('');
+
   return {
     validate(value, ref = null) {
       const errors = [];
@@ -95,9 +99,9 @@ export function createSchemaValidator(schema) {
     },
     // Validates against the definition for record.kind, which gives clearer messages than the root oneOf.
     validateRecord(record) {
-      if (!record || typeof record !== 'object' || !schema.$defs?.[record.kind]) return [{ path: 'kind', message: 'must be destination, accommodation or tour' }];
+      if (!record || typeof record !== 'object' || !kinds.includes(record.kind)) return [{ path: 'kind', message: `must be ${kindList}` }];
       return this.validate(record, `#/$defs/${record.kind}`);
     },
-    kinds: Object.keys(schema.$defs || {})
+    kinds
   };
 }

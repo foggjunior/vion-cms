@@ -1,11 +1,129 @@
 # Implementation status
 
-Updated 28 October 2026. Functional local prototype of the **Destinations, Accommodations and Tours** modules is
-implemented and tested in the browser. Everything below describes this local prototype only: data lives in one
-browser's IndexedDB, “publish” means visible in the local preview, and nothing is connected to Firebase,
-Cloudinary, the live website, authentication, email, bookings or payments.
+Updated 29 October 2026. Functional local prototype of the **Destinations, Accommodations and Tours** modules
+(phase 1, 28 Oct) and **Site settings and Team** (phase 2, 29 Oct) is implemented and tested in the browser.
+Everything below describes this local prototype only: data lives in one browser's IndexedDB, “publish” means
+visible in the local preview, and nothing is connected to Firebase, Cloudinary, the live website, authentication,
+email, bookings or payments.
 
-## Evidence vs. assumptions
+## Phase 2 — Site settings and Team (29 Oct 2026)
+
+Design, data model, publication rules and validation: `docs/SITE_SETTINGS_AND_TEAM.md`. All of it is proposed
+replacement behaviour, not confirmed current-CMS behaviour; screenshots only establish the *Settings › Setting
+Options* menu entry.
+
+### What works
+
+| Area | Implemented |
+| --- | --- |
+| Navigation | *Settings › Setting Options* opens the settings editor; a new *Settings › Team* entry opens the team list. The account menu's *Settings* opens the settings editor. All 15 groups and every other entry unchanged; other modules stay placeholders. Hash routes with reload and Back/Forward; the unsaved-changes guard covers both editors. |
+| Site settings | One singleton record (`site-settings`) with Company, Contact, Branding, Social profiles, Review links and Default SEO tabs, a Preview tab with publish readiness, field errors, summary and focus on the first invalid field. Empty draft by default (only the specified timezone default). Save draft, Publish/Publish changes, Unpublish; draft saves never change the published snapshot. A second settings record cannot be created (repository, schema and import). |
+| Branding | Light/dark-background logos from the shared media library or the bundled trusted logo (light backgrounds only, explicit choice), default sharing image from the library, explicit opt-in fallback to an uploaded light logo. SVG uploads remain rejected. |
+| Social / reviews | Repeatable, keyboard-reorderable entries; Facebook/Instagram/TikTok suggestions plus any other named network; per-entry visibility; duplicate visible networks rejected; https-only links. Review links have platform, URL, optional description, button label, order and visibility. |
+| Team | Searchable, filterable list in draft order; create/edit profile (name, position, plain-text biography, portrait with contextual alt text, optional https links); draft save, local publish/unpublish, archive/restore (read-only while archived), profile preview (draft/published). Profiles are not accounts. |
+| Order & visibility | Separate team lineup record with its own draft and published snapshot. Keyboard Move up/Move down (focus stays on the moved profile, position announced) and Visible checkboxes write the draft lineup; the profile editor's *Team page* tab saves visibility/position with the profile. **Publish order & visibility** publishes order/visibility only; profile publish publishes content only. Draft and published team page previews. |
+| Local preview | `#/site` shows the published company/contact summary (or an explicit “no published settings” state), the team grid in published order and a footer with logo, contact (tel:/mailto: links), maps, social and review links on every local site page (bundled-logo fallback when nothing is published). `#/site/team` and `#/site/team/<id>` show the team page and profile pages. Settings preview: summary, footer and default-SEO metadata, each stating that production SEO is not changed. |
+| Storage | IndexedDB version 2 (additive upgrade: new `siteRecords`, `sitePublished`). Same envelope, snapshot, stale-version and transaction conventions as content; validation runs inside each write transaction. |
+| Media | Usage tracking and delete protection now include logos, sharing images and portraits in drafts and published snapshots; usage links open the settings or profile editor. |
+| Backup | Data backup schemasVersion 2 with `siteRecords`/`sitePublished`; full validation (singleton, lineup integrity, schemas, unsafe links, snapshots, media references) before one replace-all transaction. schemasVersion 1 backups still import: they replace content and keep current settings, team, lineup and the images they use. Media backup format unchanged and includes portraits and logos. |
+
+### Checks actually run (29 Oct 2026, Windows 11)
+
+Server: `python -m http.server 5173 --bind 127.0.0.1` (Python 3.14.7). Playwright 1.63 (`playwright-core`, not a
+project dependency).
+
+1. **Baseline before changes:** 34/34 unit tests; end-to-end 30/32 and then 31/32 — intermittent failures from two
+   test races (a check read the previous page's heading; another matched a stale error summary). Both checks
+   now wait for the specific rendered state; the application was behaving correctly.
+2. **Unit tests** (`tests/index.html`, 53 tests = 34 existing + 19 new in `tests/site.test.js`): **53 passed, 0 failed**
+   in bundled Chromium 153.0.8010.12, Google Chrome 156.0.8078.48 and Microsoft Edge 156.0.4314.50. New coverage:
+   schema shapes and rejected secret-like fields; lineup helpers; phone/email/timezone/link rules and tel/mailto
+   building; settings draft vs publish rules (optional fields optional, bundled logo, sharing fallback, missing
+   files); profile rules; escaped rendering and unsafe links; singleton creation/duplicate/stale/reconnect; draft vs
+   published isolation for settings; simulated quota/unknown/abort failures for settings, profiles, moves and lineup
+   publish (nothing written, no success); ordering/visibility isolation from profile content; editor placement with
+   lineup stale check; unpublish/archive/restore; media protection for portraits/logos/sharing images including
+   published-only references; **upgrade of a populated version-1 database**; v2 data+media round-trip with no
+   orphaned references and content kept; **v1 backup compatibility** (site data and its images kept); rejection of
+   duplicate settings, broken lineups, unsafe links and inconsistent snapshots with nothing changed; content
+   regression (publish, duplicate, usage).
+3. **End-to-end** (`tests/e2e.mjs`, fresh browser profiles, desktop 1400×900 and phone 390×844): **44 passed,
+   0 failed** in two consecutive runs (32 existing + 12 new). New checks: Settings submenu and account menu; empty
+   settings draft, invalid values with field errors/summary/focus, edits kept, reload; publication minimum, bundled
+   logo, sharing image upload, publish, footer tel/social/review links, draft vs published preview, local site
+   unchanged by drafts; duplicate/unsafe social links; unsaved-changes guard with Stay/Back/Leave on the settings
+   editor; three profiles with portraits, reload, publish; keyboard Move up/down with focus retention and
+   published page unchanged until the order is published; visibility; draft profile edits not published by order
+   publication; unpublish/archive/restore; unsafe profile link with focus and escaped markup; media delete
+   protection; data+media backup round-trip into a fresh profile and a v1 import keeping site data; phone-width
+   settings, team list (button activation) and local site without horizontal page scroll.
+4. **Visual review** of screenshots at 1400 px and 390 px (settings branding tab, team list, profile *Team page* tab,
+   local site with company summary/team grid/footer, settings preview, profile preview, draft team page): no
+   horizontal page overflow at either width (measured).
+
+Defects found by these checks and fixed: a literal “null” in the team-order panel (native `append` of `null`); the
+publish-order button read “Order published” before any order existed; Chromium's `Intl` accepted the abbreviation
+`EAT` as a timezone (now IANA Area/Location names only); links in the company summary and profile pages were not
+visibly styled as links.
+
+Not run: Firefox and Safari/WebKit (not installed here); screen-reader testing; real storage exhaustion (simulated
+by aborting the transaction); multi-tab editing of the same team order beyond the stale-version tests.
+
+### Local assumptions (conservative, reversible)
+
+- Display order and visibility are a separate lineup record published on its own (see design notes). New profiles
+  join the end of the draft order and are visible by default; nothing shows publicly until both the profile and the
+  order are published.
+- Unpublishing a profile keeps its place in the order; archiving removes it from the draft order and remembers its
+  visibility for restore (restored profiles go to the end).
+- Settings have no archive; Unpublish removes the published settings from the local site.
+- The bundled `assets/logo-dark.svg` (near-black wordmark, orange mark) is offered for light backgrounds only and is
+  never pre-selected. No bundled logo suits dark backgrounds. It cannot be the sharing image (SVG).
+- The sharing image is one field shown in Branding and referenced from Default SEO. Its alt text is optional.
+- Logo alt text is required to publish. Social profile and review link entries must be complete to publish (or be
+  removed); hidden duplicate networks are allowed.
+- Telephone uses the existing international rule (7–15 digits), not a Tanzania-only format. Email is a conservative
+  plain-address subset. The Google Maps link must be a Google Maps host.
+- The settings timezone is public information only; CMS timestamps are still displayed in EAT.
+- The title suffix is appended after a space (“Page title | Site name” in the preview); no production title
+  template is assumed.
+- Team profiles have no slug or public URL; the local preview addresses them by ID (`#/site/team/<id>`).
+- A schemasVersion 1 backup keeps current site data (it has no information about it); a schemasVersion 2 backup with
+  empty site lists clears it.
+
+### Limitations
+
+- The team page and footer are approximations for local review, not the live site's templates.
+- Order changes on the Team list are saved immediately as a draft (there is no batch “Save order” step); the
+  published team page changes only when the order is published.
+- Only the current published snapshot of the settings, each profile and the lineup is kept, not a history.
+- Placement edits in the profile editor are rejected as stale if the order changed anywhere since the editor loaded;
+  reload to continue.
+- Older CMS tabs still running the version-1 code must be reloaded after the database upgrade.
+
+### Acceptance checklist results (phase 2)
+
+| Checklist item | Result | Evidence |
+| --- | --- | --- |
+| Settings submenu keeps Setting Options, adds Team; 15 groups, placeholders and content modules unchanged | Pass | E2E Settings submenu check; all 32 phase-1 checks still pass |
+| One settings record; duplicates rejected; empty draft; optional fields optional | Pass | Unit singleton/validation tests; E2E settings draft check; import rejection test |
+| Supplied values validated (phone, email, timezone, https links, maps host, duplicate visible networks); errors, summary, focus | Pass | Unit rule tests; E2E settings invalid-values and social checks |
+| Settings publication minimum; bundled logo and explicit sharing fallback | Pass | Unit publish-rule test; E2E publish check |
+| Team profiles: create/edit, portrait + alt, links, draft save, publish/unpublish, archive/restore, preview | Pass | E2E team checks; unit archive/unpublish test |
+| Keyboard Move up/down; order/visibility published separately; reordering never publishes profile drafts | Pass | E2E keyboard ordering and draft-isolation checks; unit lineup tests |
+| Draft vs published isolation for settings, profiles and team page | Pass | Unit snapshot tests; E2E preview checks |
+| Stale writes and simulated storage failures never report success | Pass (failures simulated) | Unit stale and fault-injection tests |
+| Media used by settings/profiles (drafts or published snapshots) cannot be deleted | Pass | Unit media test; E2E media check |
+| Escaped text and unsafe links in profiles and settings | Pass | Unit rendering test; E2E unsafe-link/markup check |
+| Populated version-1 database upgrades additively | Pass | Unit upgrade test |
+| Backup v2 round-trip with media and no orphans; v1 backups import and keep site data | Pass | Unit backup tests; E2E round-trip and legacy import |
+| Desktop and phone layouts, unsaved-changes guard, reload and Back/Forward | Pass | E2E guard and mobile checks; visual review |
+
+---
+
+## Phase 1 — Destinations, Accommodations and Tours (28 Oct 2026)
+
+### Evidence vs. assumptions (phase 1)
 
 - **Confirmed by evidence (unchanged from the handoff):** navigation labels and the 15 sidebar groups (screenshots);
   observed public destination/accommodation fields and inferred tour fields (public audit, as summarised in
@@ -14,7 +132,7 @@ Cloudinary, the live website, authentication, email, bookings or payments.
   lifecycle, field models in `schemas/content.schema.json`, validation and publish minimums, slug/route rules,
   planned redirects, image roles, taxonomies, pricing modes and everything under “Local assumptions” below.
 
-## What works
+### What works (phase 1)
 
 | Area | Implemented |
 | --- | --- |
@@ -33,7 +151,7 @@ Cloudinary, the live website, authentication, email, bookings or payments.
 | Backup | Data backup JSON (`format`, `schemasVersion: 1`, `binaryAssetsIncluded: false` plus a notice) and a separate media backup JSON with base64 originals. Imports are validated completely (format/version, schema, unsafe links, references, unique routes, snapshot consistency, redirect loops, image types; media decoded) before a single replace-all transaction. |
 | Safety | All user and imported text rendered as text nodes; URL attributes allowlisted; Content-Security-Policy restricts scripts and network connections to the same origin. |
 
-## Checks actually run (28 Oct 2026, Windows 11)
+### Checks actually run (phase 1, 28 Oct 2026)
 
 Server: `python -m http.server 5173 --bind 127.0.0.1` (Python 3.14.7). Playwright 1.63 (`playwright-core`, not a
 project dependency) drove the browsers.
@@ -54,7 +172,7 @@ overwritten by “Unsaved changes”; the Back-button guard left duplicate histo
 view; a hidden table label widened mobile pages; hidden file inputs had no visible keyboard focus; “activitys”
 pluralisation; imports now report all record-level problems at once.
 
-## Acceptance checklist results
+### Acceptance checklist results (phase 1)
 
 | Checklist item | Result | Evidence |
 | --- | --- | --- |
@@ -77,7 +195,7 @@ pluralisation; imports now report all record-level problems at once.
 | Desktop and mobile usable with keyboard, visible focus, horizontal tables | Pass | E2E 28, 29, 31 |
 | Checks and limitations recorded | Done | This document |
 
-## Local assumptions (conservative, reversible)
+### Local assumptions (phase 1)
 
 - Route prefixes `/destinations/`, `/accommodations/`, `/tours/`; slug pattern `a-z0-9` with single hyphens, max 96.
 - Public name = display name if set, otherwise title (destinations).
@@ -97,7 +215,7 @@ pluralisation; imports now report all record-level problems at once.
 - Test hooks: `window.__vionApp` (workspace access, fault injection, current view) and `data-rendered-route` /
   `data-ready` on `#moduleRoot`. They do not bypass any rule.
 
-## Limitations
+### Limitations (phase 1)
 
 - Single-browser, single-origin storage; clearing site data deletes everything. Not secure, not multi-user, no
   authentication or roles. Use **Backup & import** and optionally “Request persistent storage”.
@@ -120,3 +238,9 @@ B1 exact tour editor · B2 price matrix · B3 private commercial data · B4 taxo
 C2 legacy slugs and real redirects · D1/D2 publication and cache/live update · E1 media ownership · F1 authentication ·
 G1/G2 enquiries and notifications · J1 copy corrections. Also: Firebase/Next.js adoption, data migration and
 deployment, all intentionally not started.
+
+Phase 2 additions: the real Setting Options fields and validation of the existing CMS (only the menu entry is
+evidenced), the production team page template and whether profiles have public URLs, the confirmed company and
+contact details (all entered values are local drafts), staff accounts and permissions (F1), notification recipients
+and any integration settings (G2 and production configuration — deliberately not stored in public settings), and
+how production SEO defaults are applied (D1/D2).

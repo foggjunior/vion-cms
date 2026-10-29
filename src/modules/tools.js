@@ -4,7 +4,7 @@ import { confirmDialog, messageDialog } from '../components/dialog.js';
 import { errorDetails, notice, toast } from '../components/feedback.js';
 import { TAXONOMY_NAMESPACES, taxonomyUsage } from './shared/records.js';
 import { formatBytes, formatDateTime } from './shared/format.js';
-import { DATA_BACKUP_NOTICE } from '../storage/backup.js';
+import { DATA_BACKUP_NOTICE, LEGACY_IMPORT_NOTICE } from '../storage/backup.js';
 import { storageEstimate } from '../storage/workspace.js';
 import { toolNav } from './list-view.js';
 
@@ -102,8 +102,11 @@ export async function createBackupView({ app }) {
   async function renderStorage() {
     const est = await storageEstimate();
     const ctx = await ws.loadContext();
+    const site = [...ctx.siteRecords.values()];
+    const profiles = site.filter(env => env.kind === 'teamMember').length;
     clear(storageEl).append(
       h('p', null, `${ctx.records.size} records · ${ctx.published.size} published snapshots · ${ctx.assets.size} images · ${ctx.taxonomies.size} taxonomy terms · ${ctx.redirects.length} planned redirects.`),
+      h('p', null, `Site settings: ${ctx.siteRecords.has('site-settings') ? (ctx.sitePublished.has('site-settings') ? 'saved and published' : 'saved, not published') : 'not saved yet'} · ${profiles} team profile${profiles === 1 ? '' : 's'} · team order ${ctx.sitePublished.has('team-lineup') ? 'published' : ctx.siteRecords.has('team-lineup') ? 'not published' : 'not created yet'}.`),
       h('p', null, est.usage != null ? `Browser storage used by this site: ${formatBytes(est.usage)} of about ${formatBytes(est.quota)} available.` : 'Storage usage is not reported by this browser.'),
       h('p', null, est.persisted ? 'Persistent storage is granted: the browser should not clear this data automatically.' : 'Storage is “best effort”: the browser may clear it under storage pressure. Export backups regularly.'),
       est.persisted ? null : button('Request persistent storage', { onClick: async () => { const ok = await navigator.storage?.persist?.(); toast(ok ? 'Persistent storage granted.' : 'The browser did not grant persistent storage.'); renderStorage(); } }));
@@ -126,15 +129,19 @@ export async function createBackupView({ app }) {
     const s = check.summary;
     const ok = await confirmDialog({
       title: 'Replace all local content with this backup?',
-      body: h('div', null, h('p', null, `The backup is valid: ${s.records} records, ${s.published} published snapshots, ${s.redirects} redirects, ${s.taxonomies} terms, ${s.assets} image records.`),
-        h('p', null, 'All current local records, snapshots, redirects, terms and image details will be replaced. Image files are kept only for images listed in the backup. Export a backup of the current data first if you may need it.'),
+      body: h('div', null, h('p', null, `The backup is valid: ${s.records} records, ${s.published} published snapshots, ${s.redirects} redirects, ${s.taxonomies} terms, ${s.assets} image records${check.legacy ? '' : `, ${s.settings ? 'site settings' : 'no site settings'}, ${s.teamProfiles} team profile${s.teamProfiles === 1 ? '' : 's'}`}.`),
+        check.legacy
+          ? notice('warning', LEGACY_IMPORT_NOTICE)
+          : h('p', null, 'All current local records, snapshots, redirects, terms, site settings, team profiles, team order and image details will be replaced. Image files are kept only for images listed in the backup.'),
+        h('p', null, 'Export a backup of the current data first if you may need it.'),
         data.binaryAssetsIncluded === false ? h('p', null, 'This data backup contains no image files; import the matching media backup afterwards.') : null),
       confirmLabel: 'Replace local content', danger: true
     });
     if (!ok) return;
     try {
-      await ws.backup.importData(data);
-      importOut.append(notice('success', h('strong', null, 'Import complete. '), `Imported ${s.records} records and ${s.assets} image records.`));
+      const applied = await ws.backup.importData(data);
+      importOut.append(notice('success', h('strong', null, 'Import complete. '), `Imported ${s.records} records and ${s.assets} image records.`,
+        check.legacy ? ` Kept ${applied.keptSiteRecords} site record${applied.keptSiteRecords === 1 ? '' : 's'} (settings, team profiles, team order) and ${applied.keptAssets} image record${applied.keptAssets === 1 ? '' : 's'} they use.` : ` Imported ${s.teamProfiles} team profile${s.teamProfiles === 1 ? '' : 's'}${s.settings ? ' and the site settings' : ''}.`));
       toast('Backup imported.');
       renderStorage();
     } catch (err) {
@@ -174,9 +181,10 @@ export async function createBackupView({ app }) {
             toast(media.missingBinaries.length ? `Media backup downloaded; ${media.missingBinaries.length} image file(s) were missing and not included.` : 'Media backup downloaded.');
           } catch (err) { messageDialog({ title: 'Export failed', body: errorDetails(err) }); }
         } })),
-      h('p', { class: 'field-hint' }, 'The media backup stores each original image as base64 text with its details. It can be large. Format: schemasVersion 1.')),
+      h('p', { class: 'field-hint' }, 'Data backups are schemasVersion 2. The media backup stores each original image (including portraits, logos and sharing images) as base64 text with its details. It can be large. Media format: schemasVersion 1 (unchanged).')),
     h('section', { class: 'panel tool-panel' }, h('h2', null, 'Import data backup'),
-      h('p', null, 'Replaces all local records, published snapshots, planned redirects, taxonomy terms and image details. The whole file is validated first (format and version, record schema, unsafe links, references, unique routes, redirect loops, image types); if anything is wrong, nothing changes.'),
+      h('p', null, 'Replaces all local records, published snapshots, planned redirects, taxonomy terms, site settings, team profiles, team order and image details. The whole file is validated first (format and version, record schemas, unsafe links, references, unique routes, redirect loops, singleton settings, team order integrity, image types); if anything is wrong, nothing changes.'),
+      h('p', { class: 'field-hint' }, 'Backups made before Site Settings and Team existed (schemasVersion 1) can still be imported: they replace content, redirects, terms and image details, and keep the current site settings, team profiles and team order with the images those use.'),
       h('div', { class: 'btn-row' }, fileButton('import-data-file', 'Choose data backup…', importData)), importOut),
     h('section', { class: 'panel tool-panel' }, h('h2', null, 'Import media backup'),
       h('p', null, 'Restores image files from a media backup. Every image is checked (JPEG/PNG/WebP content, size limit, decodable) before anything is stored.'),

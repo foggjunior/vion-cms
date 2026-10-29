@@ -9,6 +9,7 @@ attributes pass through an allowlist.
 - `repeater.js` — ordered repeaters with Move up/down/Remove buttons, focus retention and announcements;
   string lists built on it.
 - `relation-picker.js` — filterable many-to-many picker that keeps draft/archived/missing references visible.
-- `media.js`, `media-picker.js` — cover/gallery/share-image fields, object-URL scope (revoked on view close),
-  upload + library picker dialog.
+- `media.js`, `media-picker.js` — cover/gallery/share-image fields (the single-image field is reused for portraits
+  and the settings sharing image via `idPath`, labels and optional caption/alt), object-URL scope (revoked on view
+  close), upload + library picker dialog.
 - `dialog.js`, `feedback.js` — modal `<dialog>` confirmations, toasts, status badges, notices.

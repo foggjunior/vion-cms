@@ -1,10 +1,10 @@
 // Local asset library: metadata and original Blobs are stored separately so listing never loads binaries.
 import { STORES, request, runTransaction } from './idb.js';
-import { RepoError, readContext } from './content-repository.js';
+import { CONTEXT_STORES, RepoError, readContext } from './content-repository.js';
 import { MEDIA_LIMITS } from './media-validation.js';
 import { assetUsage } from '../modules/shared/records.js';
 
-export function createMediaRepository({ db, validator, events, clock = () => new Date().toISOString(), newId = () => crypto.randomUUID(), faults = null }) {
+export function createMediaRepository({ db, validator, siteValidator = null, events, clock = () => new Date().toISOString(), newId = () => crypto.randomUUID(), faults = null }) {
   const emit = (type, id) => events?.emit({ type, id, kind: 'asset' });
 
   return {
@@ -59,14 +59,15 @@ export function createMediaRepository({ db, validator, events, clock = () => new
     },
 
     async usage(id) {
-      const ctx = await runTransaction(db, [STORES.records, STORES.published, STORES.redirects, STORES.assets, STORES.assetBlobs, STORES.taxonomies], 'readonly', tx => readContext(tx, validator));
+      const ctx = await runTransaction(db, CONTEXT_STORES, 'readonly', tx => readContext(tx, validator, siteValidator));
       return assetUsage(id, ctx);
     },
 
-    // Deletion is allowed only when no working draft or published snapshot references the asset.
+    // Deletion is allowed only when no working draft or published snapshot (content, site settings or team
+    // profile) references the asset. The check runs inside the deleting transaction.
     async remove(id) {
-      await runTransaction(db, [STORES.records, STORES.published, STORES.redirects, STORES.assets, STORES.assetBlobs, STORES.taxonomies], 'readwrite', async tx => {
-        const ctx = await readContext(tx, validator);
+      await runTransaction(db, CONTEXT_STORES, 'readwrite', async tx => {
+        const ctx = await readContext(tx, validator, siteValidator);
         if (!ctx.assets.has(id)) throw new RepoError('not-found', 'This image no longer exists in the local library.');
         const usage = assetUsage(id, ctx);
         if (usage.length) {

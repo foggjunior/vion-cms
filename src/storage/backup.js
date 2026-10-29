@@ -1,19 +1,33 @@
 // Versioned JSON backup and import. The data backup excludes image binaries (stated in the file itself);
 // a separate media backup carries the original image files as base64. Imports are validated completely
 // and then applied in a single transaction, so a rejected import changes nothing.
+//
+// schemasVersion 2 (written now) adds siteRecords/sitePublished: the site settings singleton, team profiles
+// and the team lineup (display order + visibility), each with its published snapshot. Importing a v2 backup
+// replaces everything, including those collections (an empty list clears them).
+// schemasVersion 1 backups (made before Site Settings and Team existed) are still accepted. They replace the
+// collections they contain; the current site settings, team profiles and lineup are KEPT unchanged, together
+// with the image details and files those records use, so nothing they reference is orphaned.
 import { ALL_STORES, STORES, request, runTransaction } from './idb.js';
 import { RepoError } from './content-repository.js';
 import { MEDIA_LIMITS, inspectImageFile } from './media-validation.js';
 import { KINDS, TAXONOMY_NAMESPACES, makeContext, relationRefs } from '../modules/shared/records.js';
 import { ROUTE_PREFIXES, SLUG_PATTERN, redirectProblems, routeFor } from '../modules/shared/routes.js';
 import { errorsOnly, validateDraft } from '../modules/shared/validation.js';
+import { LINEUP_ID, SETTINGS_ID, SITE_KINDS, siteAssetRefs } from '../modules/shared/site.js';
+import { validateMemberDraft, validateSettingsDraft } from '../modules/shared/site-validation.js';
 
 export const BACKUP_FORMAT = 'vion-cms-local-backup';
 export const MEDIA_BACKUP_FORMAT = 'vion-cms-local-media-backup';
-export const SCHEMAS_VERSION = 1;
-export const DATA_BACKUP_NOTICE = 'This data backup contains records, published snapshots, planned local redirects, taxonomy terms and image metadata. It does NOT contain image files. Export the separate media backup to keep the original images.';
+export const SCHEMAS_VERSION = 2;
+export const LEGACY_SCHEMAS_VERSION = 1;
+export const MEDIA_SCHEMAS_VERSION = 1;
+export const DATA_BACKUP_NOTICE = 'This data backup contains records, published snapshots, planned local redirects, taxonomy terms, site settings, team profiles, team order and visibility, and image metadata. It does NOT contain image files. Export the separate media backup to keep the original images.';
+export const LEGACY_IMPORT_NOTICE = 'This backup was made before Site Settings and Team existed (schemasVersion 1). It replaces destinations, accommodations, tours, their published snapshots, planned redirects, taxonomy terms and image details. Your current site settings, team profiles and team order are kept unchanged, together with the image details and files they use.';
 
 const WORKFLOW_KEYS = ['priorStatus', 'lastPublishedRoute', 'routeHistory', 'publishedRevision', 'lastPublishedAt', 'publishedSourceVersion', 'archivedAt'];
+const SITE_WORKFLOW_KEYS = ['priorStatus', 'publishedRevision', 'lastPublishedAt', 'publishedSourceVersion', 'archivedAt', 'priorVisible'];
+const SITE_STORES = [STORES.siteRecords, STORES.sitePublished];
 const ASSET_KEYS = ['id', 'fileName', 'type', 'size', 'width', 'height', 'alt', 'credit', 'caption', 'createdAt', 'updatedAt', 'version'];
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isIso = v => typeof v === 'string' && !Number.isNaN(Date.parse(v)) && /^\d{4}-\d{2}-\d{2}T/.test(v);
@@ -37,14 +51,15 @@ function base64ToBlob(data, type) {
   return new Blob([bytes], { type });
 }
 
-export function createBackupService({ db, validator, events, clock = () => new Date().toISOString() }) {
+export function createBackupService({ db, validator, siteValidator, events, clock = () => new Date().toISOString() }) {
   async function readAll() {
     return runTransaction(db, ALL_STORES, 'readonly', async tx => {
       const all = name => request(tx.objectStore(name).getAll());
-      const [records, published, redirects, taxonomies, assets, blobKeys] = await Promise.all([
-        all(STORES.records), all(STORES.published), all(STORES.redirects), all(STORES.taxonomies), all(STORES.assets), request(tx.objectStore(STORES.assetBlobs).getAllKeys())
+      const [records, published, redirects, taxonomies, assets, blobKeys, siteRecords, sitePublished] = await Promise.all([
+        all(STORES.records), all(STORES.published), all(STORES.redirects), all(STORES.taxonomies), all(STORES.assets), request(tx.objectStore(STORES.assetBlobs).getAllKeys()),
+        all(STORES.siteRecords), all(STORES.sitePublished)
       ]);
-      return { records, published, redirects, taxonomies, assets, blobKeys };
+      return { records, published, redirects, taxonomies, assets, blobKeys, siteRecords, sitePublished };
     });
   }
 
@@ -53,8 +68,11 @@ export function createBackupService({ db, validator, events, clock = () => new D
     const fail = (where, message) => errors.push(`${where}: ${message}`);
     if (!isObject(data)) return { ok: false, errors: ['The file is not a JSON object.'] };
     if (data.format !== BACKUP_FORMAT) fail('format', `expected "${BACKUP_FORMAT}". This does not look like a Vion CMS data backup${data.format === MEDIA_BACKUP_FORMAT ? ' (it is a media backup — use “Import media backup”)' : ''}.`);
-    if (data.schemasVersion !== SCHEMAS_VERSION) fail('schemasVersion', `expected ${SCHEMAS_VERSION}, found ${JSON.stringify(data.schemasVersion)}. This backup was made by an unsupported version.`);
+    const legacy = data.schemasVersion === LEGACY_SCHEMAS_VERSION;
+    if (!legacy && data.schemasVersion !== SCHEMAS_VERSION) fail('schemasVersion', `expected ${SCHEMAS_VERSION} (or ${LEGACY_SCHEMAS_VERSION} for backups made before Site Settings and Team), found ${JSON.stringify(data.schemasVersion)}. This backup was made by an unsupported version.`);
     for (const key of ['records', 'published', 'redirects', 'taxonomies', 'assets']) if (!Array.isArray(data[key])) fail(key, 'must be a list.');
+    if (legacy) { for (const key of ['siteRecords', 'sitePublished']) if (key in data) fail(key, 'is not part of a schemasVersion 1 backup.'); }
+    else for (const key of ['siteRecords', 'sitePublished']) if (!Array.isArray(data[key])) fail(key, 'must be a list.');
     if (errors.length) return { ok: false, errors };
 
     const ids = new Set();
@@ -144,6 +162,8 @@ export function createBackupService({ db, validator, events, clock = () => new D
     });
     for (const problem of redirectProblems(data.redirects.filter(isObject))) fail('redirects', problem);
 
+    const siteValid = legacy ? [] : validateSiteCollections(data, ids, errors, fail);
+
     // Semantic draft checks (unsafe links, phone numbers, references, unique routes) on every structurally
     // valid record, so all problems are reported together even when other parts of the file are invalid.
     try {
@@ -151,16 +171,91 @@ export function createBackupService({ db, validator, events, clock = () => new D
       const assets = objects(data.assets);
       const ctx = makeContext({
         records: structurallyValid, published: objects(data.published).filter(p => isObject(p.snapshot)), redirects: objects(data.redirects),
-        assets, blobKeys: assets.map(a => a.id), taxonomies: objects(data.taxonomies), validator
+        assets, blobKeys: assets.map(a => a.id), taxonomies: objects(data.taxonomies), siteRecords: siteValid, validator, siteValidator
       });
       for (const env of structurallyValid) {
         for (const issue of errorsOnly(validateDraft(env.record, ctx))) fail(`${env.kind} “${env.record.title}” ${issue.path}`, issue.message);
       }
+      for (const env of siteValid) {
+        const check = env.kind === 'siteSettings' ? validateSettingsDraft : env.kind === 'teamMember' ? validateMemberDraft : null;
+        for (const issue of errorsOnly(check ? check(env.record, ctx) : [])) fail(`${env.kind === 'teamMember' ? `team profile “${env.record.name}”` : 'site settings'} ${issue.path}`, issue.message);
+      }
     } catch (err) {
       fail('records', `could not be checked (${err.message}).`);
     }
-    const summary = { records: data.records.length, published: data.published.length, redirects: data.redirects.length, taxonomies: data.taxonomies.length, assets: data.assets.length };
-    return { ok: errors.length === 0, errors, summary };
+    const summary = {
+      schemasVersion: data.schemasVersion, records: data.records.length, published: data.published.length, redirects: data.redirects.length, taxonomies: data.taxonomies.length, assets: data.assets.length,
+      siteRecords: legacy ? null : data.siteRecords.length, sitePublished: legacy ? null : data.sitePublished.length,
+      teamProfiles: legacy ? null : data.siteRecords.filter(e => e?.kind === 'teamMember').length, settings: legacy ? null : data.siteRecords.some(e => e?.kind === 'siteSettings')
+    };
+    return { ok: errors.length === 0, errors, summary, legacy };
+  }
+
+  // Structural and cross-record checks for siteRecords/sitePublished. Returns the structurally valid envelopes.
+  function validateSiteCollections(data, ids, errors, fail) {
+    const valid = [];
+    const byId = new Map();
+    let settingsCount = 0;
+    data.siteRecords.forEach((env, i) => {
+      const where = `siteRecords[${i}]`;
+      const before = errors.length;
+      if (!isObject(env) || !isObject(env.record) || !isObject(env.workflow)) { fail(where, 'must contain id, kind, record and workflow objects.'); return; }
+      for (const key of Object.keys(env)) if (!['id', 'kind', 'record', 'workflow'].includes(key)) fail(`${where}.${key}`, 'is not an allowed field.');
+      if (!SITE_KINDS.includes(env.kind)) fail(`${where}.kind`, `must be one of ${SITE_KINDS.join(', ')}.`);
+      if (env.record.id !== env.id || env.record.kind !== env.kind) fail(where, 'record id/kind must match the envelope.');
+      for (const e of siteValidator.validateRecord(env.record)) fail(`${where}.record.${e.path}`, e.message);
+      const wf = env.workflow;
+      for (const key of Object.keys(wf)) if (!SITE_WORKFLOW_KEYS.includes(key)) fail(`${where}.workflow.${key}`, 'is not an allowed field.');
+      if (![null, 'draft', 'published'].includes(wf.priorStatus)) fail(`${where}.workflow.priorStatus`, 'must be null, draft or published.');
+      if (!isInt(wf.publishedRevision)) fail(`${where}.workflow.publishedRevision`, 'must be a whole number.');
+      for (const key of ['lastPublishedAt', 'archivedAt']) if (wf[key] !== null && !isIso(wf[key])) fail(`${where}.workflow.${key}`, 'must be null or an ISO timestamp.');
+      if (wf.publishedSourceVersion !== null && !isInt(wf.publishedSourceVersion, 1)) fail(`${where}.workflow.publishedSourceVersion`, 'must be null or a positive whole number.');
+      if (wf.priorVisible !== null && typeof wf.priorVisible !== 'boolean') fail(`${where}.workflow.priorVisible`, 'must be null or true/false.');
+      if (env.kind === 'siteSettings' && ++settingsCount > 1) fail(where, 'is a second site settings record; a backup may contain only one (the settings are a singleton).');
+      if (ids.has(env.id)) fail(`${where}.id`, 'is duplicated.');
+      ids.add(env.id);
+      byId.set(env.id, env);
+      if (errors.length === before) valid.push(env);
+    });
+
+    const publishedIds = new Set();
+    data.sitePublished.forEach((p, i) => {
+      const where = `sitePublished[${i}]`;
+      if (!isObject(p) || !isObject(p.snapshot)) { fail(where, 'must contain a snapshot object.'); return; }
+      for (const key of Object.keys(p)) if (!['id', 'kind', 'revision', 'publishedAt', 'sourceVersion', 'snapshot'].includes(key)) fail(`${where}.${key}`, 'is not an allowed field.');
+      const env = byId.get(p.id);
+      if (!env) fail(`${where}.id`, 'has no matching site record.');
+      else if (env.record?.status !== 'published') fail(where, `belongs to a record whose status is ${env.record?.status}; only published records may have a published snapshot.`);
+      if (p.snapshot.id !== p.id || p.snapshot.kind !== p.kind || p.snapshot.status !== 'published') fail(`${where}.snapshot`, 'must match the record id/kind and have status published.');
+      for (const e of siteValidator.validateRecord(p.snapshot)) fail(`${where}.snapshot.${e.path}`, e.message);
+      if (!isInt(p.revision, 1) || !isInt(p.sourceVersion, 1) || !isIso(p.publishedAt)) fail(where, 'needs a revision, sourceVersion and publishedAt.');
+      if (publishedIds.has(p.id)) fail(`${where}.id`, 'is duplicated.');
+      publishedIds.add(p.id);
+    });
+    for (const env of byId.values()) {
+      if (env.record?.status === 'published' && !publishedIds.has(env.id)) fail(`site record ${env.id}`, 'is marked published but has no published snapshot.');
+    }
+
+    // Lineup integrity: every active profile appears exactly once in the draft lineup; lineups only list profiles.
+    const active = valid.filter(env => env.kind === 'teamMember' && env.record.status !== 'archived');
+    const lineup = valid.find(env => env.id === LINEUP_ID);
+    if (active.length && !lineup) fail('siteRecords', 'team profiles are present but the team order (lineup) record is missing.');
+    const checkEntries = (entries, where, draft) => {
+      const seen = new Set();
+      entries.forEach((entry, i) => {
+        const member = byId.get(entry.memberId);
+        if (!member || member.kind !== 'teamMember') fail(`${where}[${i}]`, 'references a team profile that is not in this backup.');
+        else if (draft && member.record?.status === 'archived') fail(`${where}[${i}]`, 'lists an archived profile; archived profiles are not in the draft team order.');
+        if (seen.has(entry.memberId)) fail(`${where}[${i}]`, 'lists the same profile twice.');
+        seen.add(entry.memberId);
+      });
+      if (draft) for (const env of active) if (!seen.has(env.id)) fail(where, `does not include the active profile “${env.record.name}”.`);
+    };
+    if (lineup) checkEntries(lineup.record.entries, 'team lineup entries', true);
+    const publishedLineup = data.sitePublished.find(p => isObject(p) && p.id === LINEUP_ID && isObject(p.snapshot) && Array.isArray(p.snapshot.entries));
+    if (publishedLineup) checkEntries(publishedLineup.snapshot.entries, 'published team lineup entries', false);
+    if (valid.some(env => env.kind === 'siteSettings' && env.id !== SETTINGS_ID)) fail('siteRecords', 'site settings must use the fixed settings ID.');
+    return valid;
   }
 
   return {
@@ -169,7 +264,7 @@ export function createBackupService({ db, validator, events, clock = () => new D
       return {
         format: BACKUP_FORMAT, schemasVersion: SCHEMAS_VERSION, exportedAt: clock(), binaryAssetsIncluded: false, notice: DATA_BACKUP_NOTICE,
         records: all.records, published: all.published, redirects: all.redirects, taxonomies: all.taxonomies,
-        assets: all.assets
+        assets: all.assets, siteRecords: all.siteRecords, sitePublished: all.sitePublished
       };
     },
 
@@ -185,36 +280,56 @@ export function createBackupService({ db, validator, events, clock = () => new D
         if (!blob) { missing.push(asset.fileName); continue; }
         assets.push({ ...asset, dataBase64: await blobToBase64(blob) });
       }
-      return { format: MEDIA_BACKUP_FORMAT, schemasVersion: SCHEMAS_VERSION, exportedAt: clock(), binaryAssetsIncluded: true, assets, missingBinaries: missing };
+      return { format: MEDIA_BACKUP_FORMAT, schemasVersion: MEDIA_SCHEMAS_VERSION, exportedAt: clock(), binaryAssetsIncluded: true, assets, missingBinaries: missing };
     },
 
     validateDataBackup,
 
-    // Replaces all local records, snapshots, redirects, taxonomy terms and image metadata.
+    // Replace-all import. A v2 backup replaces every collection, including site settings, team profiles and
+    // the lineup. A v1 backup replaces the collections it contains and keeps the current site records plus the
+    // image details/files they reference (see the header comment). Image files are kept only for images that
+    // remain listed; the separate media backup restores files.
     async importData(data) {
       const result = validateDataBackup(data);
       if (!result.ok) throw new RepoError('validation', 'The backup was rejected. Nothing was changed.', { errors: result.errors });
-      await runTransaction(db, ALL_STORES, 'readwrite', async tx => {
-        const keep = new Set(data.assets.map(a => a.id));
-        const blobStore = tx.objectStore(STORES.assetBlobs);
+      const summary = await runTransaction(db, ALL_STORES, 'readwrite', async tx => {
+        const store = name => tx.objectStore(name);
+        let keptAssets = [];
+        let keptSite = 0;
+        if (result.legacy) {
+          const [siteRecords, sitePublished, assets] = await Promise.all([request(store(STORES.siteRecords).getAll()), request(store(STORES.sitePublished).getAll()), request(store(STORES.assets).getAll())]);
+          const used = new Set([...siteRecords.map(env => env.record), ...sitePublished.map(p => p.snapshot)].flatMap(siteAssetRefs).map(ref => ref.assetId));
+          const incoming = new Set(data.assets.map(a => a.id));
+          keptAssets = assets.filter(a => used.has(a.id) && !incoming.has(a.id));
+          keptSite = siteRecords.length;
+        }
+        const keep = new Set([...data.assets, ...keptAssets].map(a => a.id));
+        const blobStore = store(STORES.assetBlobs);
         for (const key of await request(blobStore.getAllKeys())) if (!keep.has(key)) await request(blobStore.delete(key));
-        for (const name of [STORES.records, STORES.published, STORES.redirects, STORES.taxonomies, STORES.assets]) await request(tx.objectStore(name).clear());
-        for (const env of data.records) await request(tx.objectStore(STORES.records).put(env));
-        for (const p of data.published) await request(tx.objectStore(STORES.published).put(p));
-        for (const r of data.redirects) await request(tx.objectStore(STORES.redirects).put(r));
-        for (const t of data.taxonomies) await request(tx.objectStore(STORES.taxonomies).put(t));
-        for (const a of data.assets) await request(tx.objectStore(STORES.assets).put(a));
-        await request(tx.objectStore(STORES.meta).put({ key: 'lastImport', at: clock(), summary: result.summary }));
+        const replaced = [STORES.records, STORES.published, STORES.redirects, STORES.taxonomies, STORES.assets, ...(result.legacy ? [] : SITE_STORES)];
+        for (const name of replaced) await request(store(name).clear());
+        for (const env of data.records) await request(store(STORES.records).put(env));
+        for (const p of data.published) await request(store(STORES.published).put(p));
+        for (const r of data.redirects) await request(store(STORES.redirects).put(r));
+        for (const t of data.taxonomies) await request(store(STORES.taxonomies).put(t));
+        for (const a of [...data.assets, ...keptAssets]) await request(store(STORES.assets).put(a));
+        if (!result.legacy) {
+          for (const env of data.siteRecords) await request(store(STORES.siteRecords).put(env));
+          for (const p of data.sitePublished) await request(store(STORES.sitePublished).put(p));
+        }
+        const applied = { ...result.summary, keptSiteRecords: keptSite, keptAssets: keptAssets.length };
+        await request(store(STORES.meta).put({ key: 'lastImport', at: clock(), summary: applied }));
+        return applied;
       });
       events?.emit({ type: 'imported', kind: 'all' });
-      return result.summary;
+      return summary;
     },
 
     // Decodes and inspects every image before writing anything.
     async validateMediaBackup(data) {
       const errors = [];
       if (!isObject(data) || data.format !== MEDIA_BACKUP_FORMAT) return { ok: false, errors: [`format: expected "${MEDIA_BACKUP_FORMAT}". This is not a Vion CMS media backup.`], items: [] };
-      if (data.schemasVersion !== SCHEMAS_VERSION) return { ok: false, errors: [`schemasVersion: expected ${SCHEMAS_VERSION}.`], items: [] };
+      if (data.schemasVersion !== MEDIA_SCHEMAS_VERSION) return { ok: false, errors: [`schemasVersion: expected ${MEDIA_SCHEMAS_VERSION}.`], items: [] };
       if (!Array.isArray(data.assets)) return { ok: false, errors: ['assets: must be a list.'], items: [] };
       const existing = new Map((await readAll()).assets.map(a => [a.id, a]));
       const items = [];

@@ -1,8 +1,10 @@
-// Opens the local workspace: one IndexedDB database shared by the content, media, taxonomy and backup services.
+// Opens the local workspace: one IndexedDB database shared by the content, site (settings + team), media,
+// taxonomy and backup services.
 import { StorageError, openDatabase } from './idb.js';
 import { createContentRepository } from './content-repository.js';
 import { createMediaRepository } from './media-repository.js';
 import { createTaxonomyRepository } from './taxonomy-repository.js';
+import { createSiteRepository } from './site-repository.js';
 import { createBackupService } from './backup.js';
 import { createSchemaValidator } from '../modules/shared/schema-validator.js';
 
@@ -45,15 +47,19 @@ export async function loadSchema(url = new URL('../../schemas/content.schema.jso
   return response.json();
 }
 
-export async function openWorkspace({ dbName = DEFAULT_DB_NAME, schema, onBlocked, onVersionChange, clock, newId } = {}) {
+export const loadSiteSchema = () => loadSchema(new URL('../../schemas/site.schema.json', import.meta.url));
+
+export async function openWorkspace({ dbName = DEFAULT_DB_NAME, schema, siteSchema, onBlocked, onVersionChange, clock, newId } = {}) {
   const validator = createSchemaValidator(schema || await loadSchema());
+  const siteValidator = createSchemaValidator(siteSchema || await loadSiteSchema());
   const db = await openDatabase(dbName, { onBlocked, onVersionChange });
   const events = createEvents(`vion-cms:${dbName}`);
   const faults = createFaults();
-  const options = { db, validator, events, faults, ...(clock && { clock }), ...(newId && { newId }) };
+  const options = { db, validator, siteValidator, events, faults, ...(clock && { clock }), ...(newId && { newId }) };
   const content = createContentRepository(options);
   return {
-    dbName, db, validator, events, faults, content,
+    dbName, db, validator, siteValidator, events, faults, content,
+    site: createSiteRepository(options),
     media: createMediaRepository(options),
     taxonomies: createTaxonomyRepository(options),
     backup: createBackupService(options),

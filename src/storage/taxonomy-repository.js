@@ -1,10 +1,8 @@
 // Prototype tour taxonomy terms with stable IDs per namespace (type/category/standard/tag).
 // No existing values are assumed (B4 unresolved); terms cannot be deleted while referenced.
 import { STORES, request, runTransaction } from './idb.js';
-import { RepoError, readContext } from './content-repository.js';
+import { CONTEXT_STORES, RepoError, readContext } from './content-repository.js';
 import { TAXONOMY_NAMESPACES, taxonomyUsage } from '../modules/shared/records.js';
-
-const ALL = [STORES.records, STORES.published, STORES.redirects, STORES.assets, STORES.assetBlobs, STORES.taxonomies];
 
 export function createTaxonomyRepository({ db, validator, events, clock = () => new Date().toISOString(), newId = () => crypto.randomUUID(), faults = null }) {
   const emit = (type, id) => events?.emit({ type, id, kind: 'taxonomy' });
@@ -55,7 +53,7 @@ export function createTaxonomyRepository({ db, validator, events, clock = () => 
     },
 
     async remove(id) {
-      await runTransaction(db, ALL, 'readwrite', async tx => {
+      await runTransaction(db, CONTEXT_STORES, 'readwrite', async tx => {
         const ctx = await readContext(tx, validator);
         if (!ctx.taxonomies.has(id)) throw new RepoError('not-found', 'This term no longer exists.');
         const usage = taxonomyUsage(id, ctx);

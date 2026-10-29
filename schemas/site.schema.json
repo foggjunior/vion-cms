@@ -1,0 +1,471 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vion CMS site record draft schema v1",
+  "description": "Proposed draft shapes for the site settings singleton, team profiles and the team lineup (display order and visibility). Semantic publication rules (required fields, HTTPS links, phone/email/timezone formats, duplicate networks, media availability) are implemented in src/modules/shared/site-validation.js. Public settings deliberately have no fields for API keys, credentials, notification recipients, authentication, analytics IDs or integration secrets.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/siteSettings"
+    },
+    {
+      "$ref": "#/$defs/teamMember"
+    },
+    {
+      "$ref": "#/$defs/teamLineup"
+    }
+  ],
+  "$defs": {
+    "placement": {
+      "type": "object",
+      "required": [
+        "assetId",
+        "alt"
+      ],
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "alt": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "logo": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "source",
+            "key",
+            "alt"
+          ],
+          "properties": {
+            "source": {
+              "const": "bundled"
+            },
+            "key": {
+              "enum": [
+                "vion-logo-dark-artwork"
+              ]
+            },
+            "alt": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "source",
+            "assetId",
+            "alt"
+          ],
+          "properties": {
+            "source": {
+              "const": "asset"
+            },
+            "assetId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "alt": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "siteSettings": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "version",
+        "schemaVersion",
+        "company",
+        "contact",
+        "branding",
+        "social",
+        "reviews",
+        "seo"
+      ],
+      "properties": {
+        "id": {
+          "const": "site-settings"
+        },
+        "kind": {
+          "const": "siteSettings"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "company": {
+          "type": "object",
+          "required": [
+            "name",
+            "tagline",
+            "footerDescription",
+            "officeAddress",
+            "timezone",
+            "areasServed"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "tagline": {
+              "type": "string"
+            },
+            "footerDescription": {
+              "type": "string"
+            },
+            "officeAddress": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "areasServed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "contact": {
+          "type": "object",
+          "required": [
+            "primaryPhone",
+            "emergencyPhone",
+            "email",
+            "phoneSupportNote",
+            "emailResponseNote",
+            "mapsUrl"
+          ],
+          "properties": {
+            "primaryPhone": {
+              "type": "string"
+            },
+            "emergencyPhone": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            },
+            "phoneSupportNote": {
+              "type": "string"
+            },
+            "emailResponseNote": {
+              "type": "string"
+            },
+            "mapsUrl": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "branding": {
+          "type": "object",
+          "required": [
+            "logoLight",
+            "logoDark",
+            "shareImage",
+            "shareImageUsesLogo"
+          ],
+          "properties": {
+            "logoLight": {
+              "$ref": "#/$defs/logo"
+            },
+            "logoDark": {
+              "$ref": "#/$defs/logo"
+            },
+            "shareImage": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/placement"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "shareImageUsesLogo": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "social": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "network",
+              "url",
+              "visible"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "network": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "reviews": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "platform",
+              "url",
+              "description",
+              "buttonLabel",
+              "visible"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "platform": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "buttonLabel": {
+                "type": "string"
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "seo": {
+          "type": "object",
+          "required": [
+            "siteName",
+            "titleSuffix",
+            "defaultDescription"
+          ],
+          "properties": {
+            "siteName": {
+              "type": "string"
+            },
+            "titleSuffix": {
+              "type": "string"
+            },
+            "defaultDescription": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "teamMember": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "version",
+        "schemaVersion",
+        "position",
+        "bio",
+        "portrait",
+        "links"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "teamMember"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "position": {
+          "type": "string"
+        },
+        "bio": {
+          "type": "string"
+        },
+        "portrait": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/placement"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label",
+              "url"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "teamLineup": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "version",
+        "schemaVersion",
+        "entries"
+      ],
+      "properties": {
+        "id": {
+          "const": "team-lineup"
+        },
+        "kind": {
+          "const": "teamLineup"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "memberId",
+              "visible"
+            ],
+            "properties": {
+              "memberId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -5,7 +5,7 @@ import { errorDetails, notice, toast } from '../components/feedback.js';
 import { MediaUrlScope, assetImage, assetSummary } from '../components/media.js';
 import { uploadFiles, uploadResultList } from '../components/media-picker.js';
 import { ACCEPT_ATTRIBUTE, MEDIA_LIMITS } from '../storage/media-validation.js';
-import { KIND_LABELS, assetUsage } from './shared/records.js';
+import { assetUsage } from './shared/records.js';
 import { formatBytes, formatDateTime } from './shared/format.js';
 import { toolNav } from './list-view.js';
 
@@ -59,7 +59,7 @@ export async function createMediaLibraryView({ app }) {
           })),
         status,
         h('details', { class: 'usage' }, h('summary', null, usage.length ? `Used in ${usage.length} place${usage.length === 1 ? '' : 's'}` : 'Not used'),
-          usage.length ? h('ul', null, usage.map(u => h('li', null, h('a', { href: `#/${u.kind}s/${u.recordId}` },`${KIND_LABELS[u.kind]} “${u.title}”`), ` — ${u.role}, ${u.where}`))) : h('p', { class: 'muted small' }, 'Safe to delete.'))));
+          usage.length ? h('ul', null, usage.map(u => h('li', null, h('a', { href: u.href }, u.label), ` — ${u.role}, ${u.where}`))) : h('p', { class: 'muted small' }, 'Safe to delete.'))));
   }
 
   function render() {
@@ -91,7 +91,7 @@ export async function createMediaLibraryView({ app }) {
   const el = h('div', { class: 'library-view' },
     h('div', { class: 'view-head' },
       h('div', null, h('div', { class: 'eyebrow' }, 'LOCAL CONTENT TOOLS'), h('h1', { tabindex: '-1' }, 'Media library'),
-        h('p', { class: 'view-intro' }, 'One local asset library shared by destinations, accommodations and tours. Images are stored only in this browser.')),
+        h('p', { class: 'view-intro' }, 'One local asset library shared by destinations, accommodations, tours, site settings (logos, sharing image) and team portraits. Images are stored only in this browser.')),
       h('div', null, fileInput, h('label', { for: 'library-upload', class: 'btn btn-primary' }, 'Upload images'))),
     toolNav('media'),
     notice('info', `JPEG, PNG and WebP up to ${formatBytes(MEDIA_LIMITS.maxBytes)}; SVG uploads are rejected. Files are checked by content and must decode. Images narrower than ${MEDIA_LIMITS.lowResolutionWidth}px get a warning only. Referenced images cannot be deleted. This is a local prototype library; the existing Gallery section’s behaviour (E1) is unconfirmed.`),

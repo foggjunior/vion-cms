@@ -1,8 +1,10 @@
 // Minimal IndexedDB adapter. A write is reported as successful only after its transaction's
 // `complete` event (requested with strict durability); errors and aborts always reject.
-export const DB_VERSION = 1;
+// Version 2 (additive) adds siteRecords/sitePublished for site settings, team profiles and the team lineup.
+export const DB_VERSION = 2;
 export const STORES = Object.freeze({
-  records: 'records', published: 'published', redirects: 'redirects', assets: 'assets', assetBlobs: 'assetBlobs', taxonomies: 'taxonomies', meta: 'meta'
+  records: 'records', published: 'published', redirects: 'redirects', assets: 'assets', assetBlobs: 'assetBlobs', taxonomies: 'taxonomies', meta: 'meta',
+  siteRecords: 'siteRecords', sitePublished: 'sitePublished'
 });
 export const ALL_STORES = Object.freeze(Object.values(STORES));
 
@@ -70,6 +72,11 @@ function upgrade(db, oldVersion) {
     db.createObjectStore(STORES.assetBlobs, { keyPath: 'id' });
     db.createObjectStore(STORES.taxonomies, { keyPath: 'id' }).createIndex('namespace', 'namespace');
     db.createObjectStore(STORES.meta, { keyPath: 'key' });
+  }
+  // Additive: existing stores and their records are left untouched.
+  if (oldVersion < 2) {
+    db.createObjectStore(STORES.siteRecords, { keyPath: 'id' }).createIndex('kind', 'kind');
+    db.createObjectStore(STORES.sitePublished, { keyPath: 'id' }).createIndex('kind', 'kind');
   }
 }
 

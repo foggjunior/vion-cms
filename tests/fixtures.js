@@ -1,15 +1,38 @@
 import { createSchemaValidator } from '../src/modules/shared/schema-validator.js';
 import { makeContext, newItineraryDay, newRecord, newWorkflow } from '../src/modules/shared/records.js';
+import { newMember, newSettings } from '../src/modules/shared/site.js';
 import { deleteWorkspace, openWorkspace } from '../src/storage/workspace.js';
 import { inspectImageFile } from '../src/storage/media-validation.js';
 
 export const schema = await (await fetch('../schemas/content.schema.json')).json();
+export const siteSchema = await (await fetch('../schemas/site.schema.json')).json();
 export const validator = createSchemaValidator(schema);
+export const siteValidator = createSchemaValidator(siteSchema);
 
 export const envelope = (record, workflow = {}) => ({ id: record.id, kind: record.kind, record, workflow: { ...newWorkflow(), ...workflow } });
 
 export function context({ records = [], published = [], assets = [], taxonomies = [], redirects = [], blobs = true } = {}) {
   return makeContext({ records, published, redirects, assets, blobKeys: blobs ? assets.map(a => a.id) : [], taxonomies, validator });
+}
+
+export function siteContext({ assets = [], siteRecords = [], sitePublished = [], blobs = true } = {}) {
+  return makeContext({ assets, blobKeys: blobs ? assets.map(a => a.id) : [], siteRecords, sitePublished, validator, siteValidator });
+}
+
+// Fictional test values only (example.com, placeholder numbers); nothing is copied from real records.
+export function completeSettings(shareAsset, overrides = {}) {
+  const s = newSettings();
+  return {
+    ...s,
+    company: { ...s.company, name: 'Example Safari Co', officeAddress: '1 Example Road\nArusha' },
+    contact: { ...s.contact, primaryPhone: '+255 700 000 000', email: 'info@example.com' },
+    branding: { ...s.branding, logoLight: { source: 'bundled', key: 'vion-logo-dark-artwork', alt: 'Vion Africa Travel' }, shareImage: { assetId: shareAsset.id, alt: '' } },
+    ...overrides
+  };
+}
+
+export function completeMember(portraitAsset, name = 'Asha Example', overrides = {}) {
+  return { ...newMember({ name }), position: 'Safari planner', bio: 'Plans safaris across the north.', portrait: { assetId: portraitAsset.id, alt: `Portrait of ${name}` }, ...overrides };
 }
 
 export function asset(overrides = {}) {
@@ -47,8 +70,8 @@ export async function imageFile({ width = 1600, height = 900, type = 'image/png'
 
 export async function withWorkspace(fn) {
   const dbName = `vion-test-${crypto.randomUUID()}`;
-  let ws = await openWorkspace({ dbName, schema });
-  const reopen = async () => { ws.close(); ws = await openWorkspace({ dbName, schema }); return ws; };
+  let ws = await openWorkspace({ dbName, schema, siteSchema });
+  const reopen = async () => { ws.close(); ws = await openWorkspace({ dbName, schema, siteSchema }); return ws; };
   try {
     return await fn(ws, reopen, dbName);
   } finally {

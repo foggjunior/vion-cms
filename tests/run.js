@@ -1,6 +1,7 @@
 import { run } from './harness.js';
 import './domain.test.js';
 import './storage.test.js';
+import './site.test.js';
 
 const list = document.getElementById('results');
 const results = await run(result => {
