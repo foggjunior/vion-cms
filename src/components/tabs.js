@@ -1,11 +1,11 @@
 // WAI-ARIA tabs: arrow keys/Home/End move between tabs; all panels stay in the DOM so form state persists.
 import { h } from './dom.js';
 
-export function createTabs({ id, tabs, initial, onSelect }) {
+export function createTabs({ id, tabs, initial, onSelect, label = 'Editor sections' }) {
   const buttons = new Map();
   const panels = new Map();
   const badges = new Map();
-  const list = h('div', { class: 'tablist', role: 'tablist', 'aria-label': 'Editor sections' });
+  const list = h('div', { class: 'tablist', role: 'tablist', 'aria-label': label });
   for (const tab of tabs) {
     const badge = h('span', { class: 'tab-badge', hidden: true });
     const btn = h('button', {

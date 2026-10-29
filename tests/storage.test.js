@@ -137,16 +137,17 @@ test('media: referenced assets cannot be deleted; unreferenced ones can', () => 
   assertEqual((await ws.media.list()).map(a => a.id), [used.id]);
 }));
 
-test('taxonomy: stable terms, unique labels and referenced-term protection', () => withWorkspace(async ws => {
+// Phase 3 replaced term deletion with deactivation ("do not permanently delete terms in this phase").
+test('taxonomy: stable terms, unique labels; terms are deactivated, never deleted', () => withWorkspace(async ws => {
   const term = await ws.taxonomies.create('type', 'Private safari');
   await assertRejects(ws.taxonomies.create('type', 'private SAFARI'), { code: 'conflict' });
   await ws.taxonomies.create('tag', 'Private safari');
   const tour = await ws.content.saveDraft({ ...newRecord('tour', { title: 'Typed' }), typeId: term.id });
-  await assertRejects(ws.taxonomies.remove(term.id), { code: 'dependency' });
+  assertEqual(typeof ws.taxonomies.remove, 'undefined', 'no permanent deletion');
   const renamed = await ws.taxonomies.rename(term.id, 'Private tour', { expectedVersion: 1 });
   assertEqual([renamed.id, renamed.label], [term.id, 'Private tour']);
-  await ws.content.saveDraft({ ...tour.record, typeId: null }, { expectedVersion: 1 });
-  await ws.taxonomies.remove(term.id);
+  await ws.taxonomies.setActive(term.id, false, { expectedVersion: renamed.version });
+  assertEqual((await ws.content.get(tour.id)).record.typeId, term.id, 'deactivation leaves records unchanged');
 }));
 
 test('backup: data and media exports round-trip into an empty workspace', () => withWorkspace(async source => {
@@ -161,7 +162,7 @@ test('backup: data and media exports round-trip into an empty workspace', () => 
   assertEqual([data.binaryAssetsIncluded, /does NOT contain image files/.test(data.notice), media.binaryAssetsIncluded], [false, true, true]);
   await withWorkspace(async target => {
     const applied = await target.backup.importData(data);
-    assertEqual([applied.records, applied.published, applied.redirects, applied.taxonomies, applied.assets, applied.schemasVersion], [2, 1, 1, 1, 1, 2]);
+    assertEqual([applied.records, applied.published, applied.redirects, applied.taxonomies, applied.assets, applied.schemasVersion], [2, 1, 1, 1, 1, 3]);
     const ctx = await target.loadContext();
     assertEqual(ctx.assets.get(img.id).hasBlob, false, 'data backup alone restores metadata only');
     assertEqual(ctx.published.get(dest.id).route, '/destinations/serengeti');
@@ -184,7 +185,7 @@ test('backup: unsafe or inconsistent imports are rejected completely and change 
   const acc = { id: crypto.randomUUID(), kind: 'accommodation', record: null, workflow: base.records[0].workflow };
   acc.record = { ...newRecord('accommodation', { id: acc.id, title: 'Bad link' }), website: 'javascript:alert(document.cookie)' };
   await attempt(d => d.records.push(acc), /rejected for safety/);
-  await attempt(d => { d.schemasVersion = 3; }, /schemasVersion/);
+  await attempt(d => { d.schemasVersion = 4; }, /schemasVersion/);
   await attempt(d => { d.records[0].record.status = 'published'; }, /no published snapshot/);
   await attempt(d => { d.records[0].record.extra = '<script>'; }, /not an allowed field/);
   await attempt(d => d.assets.push({ id: crypto.randomUUID(), fileName: 'x.svg', type: 'image/svg+xml', size: 10, width: 1, height: 1, alt: '', credit: '', caption: '', createdAt: base.exportedAt, updatedAt: base.exportedAt, version: 1 }), /SVG/);

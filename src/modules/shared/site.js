@@ -9,6 +9,7 @@
 // - The local team page shows published lineup entries that are visible AND have a published profile
 //   snapshot, in published lineup order, rendered from the published snapshots.
 import { newId } from './format.js';
+import { CMS_PATHS } from './routes.js';
 
 export const SETTINGS_ID = 'site-settings';
 export const LINEUP_ID = 'team-lineup';
@@ -146,7 +147,7 @@ export function editorHref(kind, id) {
   if (kind === 'siteSettings') return '#/settings';
   if (kind === 'teamMember') return `#/team/${id}`;
   if (kind === 'teamLineup') return '#/team';
-  return `#/${kind}s/${id}`;
+  return `#/${CMS_PATHS[kind] || `${kind}s`}/${id}`;
 }
 
 // ---- lineup (display order + visibility) ----

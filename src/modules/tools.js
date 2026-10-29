@@ -1,63 +1,16 @@
-// Local content tools: tour taxonomies, planned redirects, and backup/import with storage status.
+// Local content tools: planned redirects, and backup/import with storage status. (Taxonomies have their own
+// screen under Tour Packages › Taxonomies: taxonomy-view.js.)
 import { button, clear, h, icon } from '../components/dom.js';
 import { confirmDialog, messageDialog } from '../components/dialog.js';
 import { errorDetails, notice, toast } from '../components/feedback.js';
-import { TAXONOMY_NAMESPACES, taxonomyUsage } from './shared/records.js';
+import { editorHref } from './shared/site.js';
 import { formatBytes, formatDateTime } from './shared/format.js';
-import { DATA_BACKUP_NOTICE, LEGACY_IMPORT_NOTICE } from '../storage/backup.js';
+import { DATA_BACKUP_NOTICE, LEGACY_IMPORT_NOTICES, SCHEMAS_VERSION } from '../storage/backup.js';
 import { storageEstimate } from '../storage/workspace.js';
 import { toolNav } from './list-view.js';
 
 const head = (title, intro) => h('div', { class: 'view-head' }, h('div', null, h('div', { class: 'eyebrow' }, 'LOCAL CONTENT TOOLS'), h('h1', { tabindex: '-1' }, title), h('p', { class: 'view-intro' }, intro)));
 const viewResult = (el, title, extra = {}) => ({ el, title, breadcrumb: `Content tools / ${title}`, mounted() { el.querySelector('h1').focus({ preventScroll: true }); }, ...extra });
-
-export async function createTaxonomyView({ app }) {
-  const ws = await app.workspace();
-  let ctx = await ws.loadContext();
-  const body = h('div', { class: 'taxonomy-grid' });
-
-  async function reload() { ctx = await ws.loadContext(); render(); }
-
-  function namespaceCard(namespace, label) {
-    const terms = [...ctx.taxonomies.values()].filter(t => t.namespace === namespace).sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
-    const addId = `term-add-${namespace}`;
-    const addInput = h('input', { id: addId, class: 'input', type: 'text', maxlength: 80, placeholder: `New ${label.toLowerCase()}` });
-    const message = h('p', { class: 'small', role: 'status' });
-    const add = async () => {
-      try { await ws.taxonomies.create(namespace, addInput.value); toast(`Added ${label.toLowerCase()} “${addInput.value.trim()}”.`); await reload(); document.getElementById(addId)?.focus(); } catch (err) { message.textContent = err.message; }
-    };
-    addInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
-    return h('section', { class: 'panel taxonomy-card' },
-      h('h2', null, `${label}s`),
-      terms.length ? h('ul', { class: 'term-list' }, terms.map(term => {
-        const usage = taxonomyUsage(term.id, ctx);
-        const input = h('input', { class: 'input', type: 'text', value: term.label, maxlength: 80, 'aria-label': `Label for ${term.label}` });
-        return h('li', null, input,
-          h('small', { class: 'muted' }, usage.length ? `Used by ${usage.length}` : 'Unused'),
-          button('Rename', { variant: 'ghost', 'aria-label': `Rename ${term.label}`, onClick: async () => {
-            try { await ws.taxonomies.rename(term.id, input.value, { expectedVersion: term.version }); toast('Term renamed. Its ID is unchanged, so tours keep their link.'); await reload(); } catch (err) { message.textContent = err.message; }
-          } }),
-          button('Delete', { variant: 'ghost-danger', disabled: usage.length > 0, 'aria-label': `Delete ${term.label}`, title: usage.length ? `Used by: ${usage.map(u => u.title).join(', ')}. Remove it from those tours first.` : 'Delete term', onClick: async () => {
-            if (!(await confirmDialog({ title: `Delete “${term.label}”?`, body: 'The term is not used by any tour.', confirmLabel: 'Delete term', danger: true }))) return;
-            try { await ws.taxonomies.remove(term.id); toast('Term deleted.'); } catch (err) { await messageDialog({ title: 'Not deleted', body: errorDetails(err) }); }
-            await reload();
-          } }));
-      })) : h('p', { class: 'muted' }, 'No terms yet.'),
-      h('div', { class: 'add-row' }, h('label', { for: addId, class: 'visually-hidden' }, `New ${label.toLowerCase()}`), addInput, button('Add', { iconName: 'plus', onClick: add })),
-      message);
-  }
-
-  function render() {
-    clear(body).append(...Object.entries(TAXONOMY_NAMESPACES).map(([ns, label]) => namespaceCard(ns, label)));
-  }
-  render();
-  const el = h('div', null,
-    head('Tour taxonomies', 'Prototype tour types, categories, standards and tags with stable IDs.'),
-    toolNav('taxonomies'),
-    notice('warning', 'Taxonomy definitions are unresolved (B4). These terms are local prototype values only and do not claim to match existing CMS values. Terms cannot be deleted while any tour (draft or published) uses them.'),
-    body);
-  return viewResult(el, 'Tour taxonomies');
-}
 
 export async function createRedirectsView({ app }) {
   const ws = await app.workspace();
@@ -72,7 +25,7 @@ export async function createRedirectsView({ app }) {
       h('tbody', null, redirects.map(r => {
         const env = ctx.records.get(r.recordId);
         return h('tr', null, h('td', null, h('a', { href: `#/site${r.from}` }, r.from)), h('td', null, r.to), h('td', null, String(r.statusCode)),
-          h('td', null, env ? h('a', { href: `#/${env.kind}s/${env.id}` }, env.record.title) : 'Missing record'), h('td', null, formatDateTime(r.createdAt)));
+          h('td', null, env ? h('a', { href: editorHref(env.kind, env.id) }, env.record.title) : 'Missing record'), h('td', null, formatDateTime(r.createdAt)));
       }))))
       : h('div', { class: 'empty-state panel' }, h('span', null, icon('redirect')), h('strong', null, 'No planned redirects'), h('p', null, 'A redirect is planned when you republish a record whose published slug changed.')));
   return viewResult(el, 'Planned redirects');
@@ -104,8 +57,10 @@ export async function createBackupView({ app }) {
     const ctx = await ws.loadContext();
     const site = [...ctx.siteRecords.values()];
     const profiles = site.filter(env => env.kind === 'teamMember').length;
+    const dayTrips = [...ctx.records.values()].filter(env => env.kind === 'dayTrip').length;
+    const defaults = await ws.defaults.getDayTripDefaults();
     clear(storageEl).append(
-      h('p', null, `${ctx.records.size} records · ${ctx.published.size} published snapshots · ${ctx.assets.size} images · ${ctx.taxonomies.size} taxonomy terms · ${ctx.redirects.length} planned redirects.`),
+      h('p', null, `${ctx.records.size} records (${dayTrips} day trip${dayTrips === 1 ? '' : 's'}) · ${ctx.published.size} published snapshots · ${ctx.assets.size} images · ${ctx.taxonomies.size} taxonomy terms (${ctx.taxonomyPublication ? `published taxonomy revision ${ctx.taxonomyPublication.revision}` : 'taxonomy not published'}) · ${ctx.redirects.length} planned redirects · day-trip defaults ${defaults ? 'saved' : 'not saved'}.`),
       h('p', null, `Site settings: ${ctx.siteRecords.has('site-settings') ? (ctx.sitePublished.has('site-settings') ? 'saved and published' : 'saved, not published') : 'not saved yet'} · ${profiles} team profile${profiles === 1 ? '' : 's'} · team order ${ctx.sitePublished.has('team-lineup') ? 'published' : ctx.siteRecords.has('team-lineup') ? 'not published' : 'not created yet'}.`),
       h('p', null, est.usage != null ? `Browser storage used by this site: ${formatBytes(est.usage)} of about ${formatBytes(est.quota)} available.` : 'Storage usage is not reported by this browser.'),
       h('p', null, est.persisted ? 'Persistent storage is granted: the browser should not clear this data automatically.' : 'Storage is “best effort”: the browser may clear it under storage pressure. Export backups regularly.'),
@@ -121,18 +76,21 @@ export async function createBackupView({ app }) {
     clear(importOut);
     let data;
     try { data = await readJsonFile(file); } catch (err) { importOut.append(notice('error', err.message)); return; }
-    const check = ws.backup.validateDataBackup(data);
+    // Dry run: validates the file and, for older backups, the current records it would keep.
+    const check = await ws.backup.previewImport(data);
     if (!check.ok) {
       importOut.append(notice('error', h('strong', null, 'Backup rejected — nothing was changed. '), `${check.errors.length} problem${check.errors.length === 1 ? '' : 's'} found:`, h('ul', { class: 'error-list' }, check.errors.slice(0, 50).map(e => h('li', null, e)))));
       return;
     }
     const s = check.summary;
     const ok = await confirmDialog({
-      title: 'Replace all local content with this backup?',
-      body: h('div', null, h('p', null, `The backup is valid: ${s.records} records, ${s.published} published snapshots, ${s.redirects} redirects, ${s.taxonomies} terms, ${s.assets} image records${check.legacy ? '' : `, ${s.settings ? 'site settings' : 'no site settings'}, ${s.teamProfiles} team profile${s.teamProfiles === 1 ? '' : 's'}`}.`),
+      title: check.legacy ? `Import this older backup (schemasVersion ${check.version})?` : 'Replace all local content with this backup?',
+      body: h('div', null, h('p', null, `The backup is valid: ${s.records} records (${s.dayTrips} day trip${s.dayTrips === 1 ? '' : 's'}), ${s.published} published snapshots, ${s.redirects} redirects, ${s.taxonomies} terms, ${s.assets} image records${s.settings === null ? '' : `, ${s.settings ? 'site settings' : 'no site settings'}, ${s.teamProfiles} team profile${s.teamProfiles === 1 ? '' : 's'}`}${check.legacy ? '' : `, ${s.dayTripDefaults ? 'day-trip defaults' : 'no day-trip defaults'}`}.`),
         check.legacy
-          ? notice('warning', LEGACY_IMPORT_NOTICE)
-          : h('p', null, 'All current local records, snapshots, redirects, terms, site settings, team profiles, team order and image details will be replaced. Image files are kept only for images listed in the backup.'),
+          ? h('div', null, notice('warning', LEGACY_IMPORT_NOTICES[check.version]),
+            h('p', null, `Kept from this browser: ${check.kept.dayTrips} day trip${check.kept.dayTrips === 1 ? '' : 's'}, ${check.kept.terms} term${check.kept.terms === 1 ? '' : 's'} they use, ${check.kept.defaults ? 'the day-trip defaults' : 'no day-trip defaults (none saved)'}${check.version === 1 ? `, ${check.kept.siteRecords} site record${check.kept.siteRecords === 1 ? '' : 's'}` : ''} and ${check.kept.assets} image record${check.kept.assets === 1 ? '' : 's'} they use.`))
+          : h('p', null, 'All current local records (including day trips), snapshots, redirects, taxonomy terms and the published taxonomy, day-trip defaults, site settings, team profiles, team order and image details will be replaced. Image files are kept only for images listed in the backup.'),
+        check.warnings.length ? h('div', null, h('p', null, `${check.warnings.length} warning${check.warnings.length === 1 ? '' : 's'} (imported as they are, flagged in the editors):`), h('ul', { class: 'error-list' }, check.warnings.slice(0, 20).map(w => h('li', null, w)))) : null,
         h('p', null, 'Export a backup of the current data first if you may need it.'),
         data.binaryAssetsIncluded === false ? h('p', null, 'This data backup contains no image files; import the matching media backup afterwards.') : null),
       confirmLabel: 'Replace local content', danger: true
@@ -141,7 +99,10 @@ export async function createBackupView({ app }) {
     try {
       const applied = await ws.backup.importData(data);
       importOut.append(notice('success', h('strong', null, 'Import complete. '), `Imported ${s.records} records and ${s.assets} image records.`,
-        check.legacy ? ` Kept ${applied.keptSiteRecords} site record${applied.keptSiteRecords === 1 ? '' : 's'} (settings, team profiles, team order) and ${applied.keptAssets} image record${applied.keptAssets === 1 ? '' : 's'} they use.` : ` Imported ${s.teamProfiles} team profile${s.teamProfiles === 1 ? '' : 's'}${s.settings ? ' and the site settings' : ''}.`));
+        check.legacy
+          ? ` Kept ${applied.keptDayTrips} day trip${applied.keptDayTrips === 1 ? '' : 's'}, ${applied.keptTerms} term${applied.keptTerms === 1 ? '' : 's'} they use${applied.keptDefaults ? ', the day-trip defaults' : ''}${check.version === 1 ? `, ${applied.keptSiteRecords} site record${applied.keptSiteRecords === 1 ? '' : 's'} (settings, team profiles, team order)` : ''} and ${applied.keptAssets} image record${applied.keptAssets === 1 ? '' : 's'} they use.`
+          : ` Imported ${s.teamProfiles} team profile${s.teamProfiles === 1 ? '' : 's'}${s.settings ? ' and the site settings' : ''}${s.dayTripDefaults ? ' and the day-trip defaults' : ''}.`,
+        applied.missingFiles ? ` ${applied.missingFiles} image${applied.missingFiles === 1 ? ' has' : 's have'} no file in this browser yet — import the matching media backup; until then they show as “file missing” and block publishing.` : ''));
       toast('Backup imported.');
       renderStorage();
     } catch (err) {
@@ -181,10 +142,10 @@ export async function createBackupView({ app }) {
             toast(media.missingBinaries.length ? `Media backup downloaded; ${media.missingBinaries.length} image file(s) were missing and not included.` : 'Media backup downloaded.');
           } catch (err) { messageDialog({ title: 'Export failed', body: errorDetails(err) }); }
         } })),
-      h('p', { class: 'field-hint' }, 'Data backups are schemasVersion 2. The media backup stores each original image (including portraits, logos and sharing images) as base64 text with its details. It can be large. Media format: schemasVersion 1 (unchanged).')),
+      h('p', { class: 'field-hint' }, `Data backups are schemasVersion ${SCHEMAS_VERSION}. The media backup stores each original image (including day-trip images, portraits, logos and sharing images) as base64 text with its details. It can be large. Media format: schemasVersion 1 (unchanged).`)),
     h('section', { class: 'panel tool-panel' }, h('h2', null, 'Import data backup'),
-      h('p', null, 'Replaces all local records, published snapshots, planned redirects, taxonomy terms, site settings, team profiles, team order and image details. The whole file is validated first (format and version, record schemas, unsafe links, references, unique routes, redirect loops, singleton settings, team order integrity, image types); if anything is wrong, nothing changes.'),
-      h('p', { class: 'field-hint' }, 'Backups made before Site Settings and Team existed (schemasVersion 1) can still be imported: they replace content, redirects, terms and image details, and keep the current site settings, team profiles and team order with the images those use.'),
+      h('p', null, 'Replaces all local records (including day trips), published snapshots, planned redirects, taxonomy terms and the published taxonomy, day-trip defaults, site settings, team profiles, team order and image details. The whole file is validated first (format and version, record schemas, unsafe links, references, term groups, unique routes, redirect loops, singleton settings, team order integrity, image types and references); if anything is wrong, nothing changes.'),
+      h('p', { class: 'field-hint' }, 'Older backups still import. schemasVersion 2 (before Day Trips) replaces destinations, accommodations, tours, terms, site settings, team and image details, and keeps your day trips, the day-trip defaults and the terms and images those day trips use. schemasVersion 1 (before Site Settings and Team) also keeps the current site settings, team profiles and team order. Kept records are checked against the imported content first; the import is refused if they would end up with broken links.'),
       h('div', { class: 'btn-row' }, fileButton('import-data-file', 'Choose data backup…', importData)), importOut),
     h('section', { class: 'panel tool-panel' }, h('h2', null, 'Import media backup'),
       h('p', null, 'Restores image files from a media backup. Every image is checked (JPEG/PNG/WebP content, size limit, decodable) before anything is stored.'),

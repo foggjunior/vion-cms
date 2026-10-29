@@ -1,14 +1,16 @@
 // Read-only renderers for saved drafts and published snapshots. All text is rendered as text nodes.
 import { h, icon } from '../components/dom.js';
 import { assetImage } from '../components/media.js';
-import { ACCOMMODATION_SETTINGS, publicName } from './shared/records.js';
+import { ACCOMMODATION_SETTINGS, KIND_LABELS, descriptionSource, publicName } from './shared/records.js';
 import { routeFor } from './shared/routes.js';
 import { describePrice, PROVISIONAL_PRICING_WARNING } from './shared/pricing.js';
 import { truncateWords, paragraphs } from './shared/format.js';
 import { SEO_DESCRIPTION_ADVICE } from './shared/validation.js';
+import { formatDuration } from './shared/day-trips.js';
 
-// mode "published": related records resolve from published snapshots only, so working edits to a
-// dependency never leak into a published page. mode "draft": related records resolve from working drafts.
+// mode "published": related records and term labels resolve from published snapshots only (records from the
+// published store, terms from the published taxonomy), so working edits never leak into a published page.
+// mode "draft": related records and terms resolve from the working versions.
 export function createResolver(ctx, mode) {
   return {
     mode,
@@ -21,7 +23,9 @@ export function createResolver(ctx, mode) {
       if (!env) return { id, title: null, visible: false };
       return { id, kind: env.kind, title: publicName(env.record), route: routeFor(env.kind, env.record.slug), status: env.record.status, visible: ctx.published.has(id), record: env.record };
     },
-    term(id) { return ctx.taxonomies.get(id)?.label || null; },
+    term(id) { return (mode === 'published' ? ctx.publishedTerms : ctx.taxonomies).get(id)?.label || null; },
+    // { label, order, active } or null; inactive terms are still displayed on records that use them.
+    termInfo(id) { return (mode === 'published' ? ctx.publishedTerms : ctx.taxonomies).get(id) || null; },
     asset(id) { return ctx.assets.get(id) || null; }
   };
 }
@@ -67,6 +71,7 @@ export function priceLine(record) {
 }
 
 export function cardSummary(record, resolver) {
+  if (record.kind === 'dayTrip') return [formatDuration(record.duration), record.summary || truncateWords(record.overview, 140)].filter(Boolean).join(' · ');
   if (record.kind === 'tour') {
     return [record.durationDays ? `${record.durationDays} day${record.durationDays === 1 ? '' : 's'}` : null, record.summary || truncateWords(record.overview, 140)].filter(Boolean).join(' · ');
   }
@@ -83,7 +88,7 @@ export function renderCard(record, { resolver, scope, href }) {
     h('div', { class: 'card-body' },
       h('h3', null, publicName(record)),
       h('p', null, cardSummary(record, resolver)),
-      record.kind === 'tour' ? priceLine(record) : null)
+      record.kind === 'tour' || record.kind === 'dayTrip' ? priceLine(record) : null)
   ];
   return href ? h('a', { class: 'preview-card', href }, inner) : h('div', { class: 'preview-card' }, inner);
 }
@@ -117,15 +122,25 @@ function accommodationBody(record, resolver, linkFor) {
   ];
 }
 
+// Term labels in display order. Published pages show only terms of the published taxonomy (inactive ones
+// included: records keep displaying them) and no management details. Draft previews flag inactive and
+// unresolved values so editors can see them.
+function termTags(ids, resolver) {
+  const terms = ids.filter(Boolean).map(id => ({ id, info: resolver.termInfo(id) }));
+  const known = terms.filter(t => t.info).sort((a, b) => a.info.order - b.info.order || a.info.label.localeCompare(b.info.label));
+  const tags = known.map(t => h('span', { class: 'tag' }, t.info.label, resolver.mode === 'draft' && t.info.active === false ? h('small', { class: 'ref-status' }, ' (inactive)') : null));
+  if (resolver.mode === 'draft') for (const t of terms.filter(x => !x.info)) tags.push(h('span', { class: 'tag tag-error' }, 'Unresolved term'));
+  return tags.length ? h('p', { class: 'term-row' }, tags) : null;
+}
+
 function tourBody(record, resolver, linkFor) {
-  const terms = [record.typeId, record.categoryId, record.standardId, ...(record.tagIds || [])].filter(Boolean).map(id => resolver.term(id) || 'Unknown term');
   return [
     h('div', { class: 'tour-facts' },
       h('div', null, h('small', null, 'Duration'), h('strong', null, record.durationDays ? `${record.durationDays} day${record.durationDays === 1 ? '' : 's'}` : 'Not set')),
       h('div', null, h('small', null, 'Destinations'), h('span', null, record.destinationIds?.length ? refList(record.destinationIds, resolver, linkFor, { separator: ', ' }) : 'None')),
       h('div', null, h('small', null, 'Price'), priceLine(record))),
-    record.pricing?.mode === 'manualFrom' ? h('p', { class: 'muted small' }, PROVISIONAL_PRICING_WARNING) : null,
-    terms.length ? h('p', { class: 'term-row' }, terms.map(t => h('span', { class: 'tag' }, t))) : null,
+    record.pricing?.mode === 'manualFrom' ? h('p', { class: 'muted small preview-pad' }, PROVISIONAL_PRICING_WARNING) : null,
+    termTags([record.typeId, record.categoryId, record.standardId, ...(record.tagIds || [])], resolver),
     record.summary ? h('p', { class: 'lead' }, record.summary) : null,
     section('Overview', prose(record.overview)),
     section('Itinerary', record.itinerary?.length ? h('ol', { class: 'itinerary-preview' }, record.itinerary.map(day => h('li', null,
@@ -139,14 +154,37 @@ function tourBody(record, resolver, linkFor) {
   ];
 }
 
+// Day trips: optional sections (duration, schedule, exclusions, what to bring) appear only when filled in.
+function dayTripBody(record, resolver, linkFor) {
+  const duration = formatDuration(record.duration);
+  return [
+    h('div', { class: 'tour-facts' },
+      duration ? h('div', null, h('small', null, 'Duration'), h('strong', null, duration)) : null,
+      h('div', null, h('small', null, record.destinationIds?.length === 1 ? 'Destination' : 'Destinations'), h('span', null, record.destinationIds?.length ? refList(record.destinationIds, resolver, linkFor, { separator: ', ' }) : 'None')),
+      h('div', null, h('small', null, 'Price'), priceLine(record))),
+    record.pricing?.mode === 'manualFrom' ? h('p', { class: 'muted small preview-pad' }, PROVISIONAL_PRICING_WARNING) : null,
+    termTags(record.tagIds || [], resolver),
+    record.summary ? h('p', { class: 'lead' }, record.summary) : null,
+    section('Overview', prose(record.overview)),
+    record.schedule?.length ? section('Schedule', h('ol', { class: 'itinerary-preview schedule-preview' }, record.schedule.map(item => h('li', null,
+      h('h3', null, item.heading || 'Untitled item'), item.description ? prose(item.description) : null)))) : null,
+    h('div', { class: 'two-col' },
+      section('Included', list(record.inclusions)),
+      record.exclusions?.length ? section('Not included', list(record.exclusions)) : null),
+    record.whatToBring?.length ? section('What to bring', list(record.whatToBring)) : null
+  ];
+}
+
+const BODIES = { destination: destinationBody, accommodation: accommodationBody, tour: tourBody, dayTrip: dayTripBody };
+
 export function renderRecordPage(record, { resolver, scope, linkFor, showSeo = false }) {
-  const body = record.kind === 'destination' ? destinationBody(record) : record.kind === 'accommodation' ? accommodationBody(record, resolver, linkFor) : tourBody(record, resolver, linkFor);
+  const body = BODIES[record.kind](record, resolver, linkFor);
   const seoTitle = record.seo?.title || publicName(record);
-  const seoDescription = record.seo?.description || truncateWords(record.kind === 'tour' ? record.summary || record.overview : record.kind === 'destination' ? record.overview : record.description, SEO_DESCRIPTION_ADVICE);
+  const seoDescription = record.seo?.description || truncateWords(descriptionSource(record), SEO_DESCRIPTION_ADVICE);
   return h('article', { class: 'preview-page' },
     record.cover ? figure(scope, resolver, record.cover, 'preview-hero') : h('div', { class: 'preview-hero img-box img-missing' }, icon('image'), h('span', null, 'No cover image')),
     h('header', { class: 'preview-head' },
-      h('p', { class: 'eyebrow' }, record.kind.toUpperCase()),
+      h('p', { class: 'eyebrow' }, KIND_LABELS[record.kind].toUpperCase()),
       h('h1', null, publicName(record))),
     ...body.filter(Boolean),
     record.gallery?.length ? section('Gallery', h('div', { class: 'preview-gallery' }, record.gallery.map(p => figure(scope, resolver, p, 'gallery-item')))) : null,

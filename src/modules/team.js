@@ -1,7 +1,7 @@
 // Team profiles (Settings › Team). Profiles are public content only: they are not user accounts, have no
 // login and are not linked to authentication. Profile content is published per profile; display order and
 // visibility belong to the separate team lineup (see shared/site.js).
-import { button, h } from '../components/dom.js';
+import { button, h, linkButton } from '../components/dom.js';
 import { confirmDialog } from '../components/dialog.js';
 import { notice } from '../components/feedback.js';
 import { fieldIdFor } from '../components/fields.js';
@@ -67,9 +67,14 @@ function placement(ed) {
     ed.group(null,
       ed.checkbox('placement.visible', { label: 'Visible on the team page', hint: 'Unticked keeps the profile (and any published version) but hides it from the team grid once the order is published.' }),
       ed.select('placement.position', { label: 'Display order', hint: 'Position in the draft team order (1 = first). You can also use Move up / Move down on the Team list.', options: Array.from({ length: count }, (_, i) => ({ value: String(i + 1), label: `${i + 1} of ${count}` })) })),
-    status ? h('p', { class: 'muted' }, h('strong', null, 'Published team page: '), status.reason) : h('p', { class: 'muted' }, 'New profiles are added to the draft team order when first saved.')
+    status ? h('p', { class: 'muted' }, h('strong', null, 'Published team page: '), status.reason) : h('p', { class: 'muted' }, 'New profiles are added to the draft team order when first saved.'),
+    ed.env ? h('div', { class: 'btn-row' }, reviewVisibilityLink()) : null
   ];
 }
+
+// Opens the existing Team list with focus on its order & visibility panel. It only navigates: nothing is
+// published by following it.
+const reviewVisibilityLink = () => linkButton('Review team visibility', '#/team?focus=lineup', { variant: 'secondary', iconName: 'eye', 'data-action': 'review-visibility' });
 
 const teamAdapter = {
   find: (ctx, id) => { const env = id ? ctx.siteRecords.get(id) : null; return env?.kind === 'teamMember' ? env : null; },
@@ -95,6 +100,9 @@ const teamAdapter = {
   previewHref: (def, env, rev) => `#/team/${env.id}/preview${rev ? `?rev=${rev}` : ''}`,
   publishNotes: () => [h('p', null, 'This publishes the profile content only. Its order and visibility on the team page are published separately with “Publish order & visibility” on the Team list.')],
   publishedToast: (env, ctx) => (teamPageStatus(env.id, ctx).onPage ? 'Profile published to the local preview.' : 'Profile published locally. It appears on the local team page once its order and visibility are published from the Team list.'),
+  // Follow-up after publishing a profile: a direct route to the order/visibility screen. Order and
+  // visibility stay a separate, explicit publication; nothing else is published here.
+  afterPublish: (env, ctx) => [notice('success', h('strong', null, 'Profile content published. '), `${teamPageStatus(env.id, ctx).reason} Order and visibility are published separately on the Team list. `, reviewVisibilityLink())],
   unpublishBody: () => 'The published profile is removed from the local preview and the team page. The profile, its draft and its place in the team order are kept; you can publish it again later.',
   archivedNote: env => `It keeps its content but is read-only, has no published version and is not in the team order. ${env.workflow.priorStatus ? `It was ${env.workflow.priorStatus} before archiving. ` : ''}Restore it to draft to edit; it returns to the end of the draft team order and must be republished.`,
   archiveBody: env => `${env.record.status === 'published' ? 'Its published version is removed from the local preview. ' : ''}It is taken out of the draft team order and becomes read-only. Its content and portrait reference are kept, and you can restore it to draft later.`,

@@ -1,6 +1,6 @@
 # Acceptance checklist
 
-Status 29 October 2026: all items (phase 1 and phase 2) verified in Chromium-based browsers. Evidence, test counts and limitations are in docs/IMPLEMENTATION_STATUS.md.
+Status 29 October 2026: all items (phases 1, 2 and 3) verified in Chromium-based browsers. Evidence, test counts and limitations are in docs/IMPLEMENTATION_STATUS.md.
 
 ## Phase 1 — Destinations, Accommodations and Tours
 
@@ -41,5 +41,25 @@ Status 29 October 2026: all items (phase 1 and phase 2) verified in Chromium-bas
 - [x] Data + media backup round-trip includes settings, profiles, order and portraits without orphaned references; version-1 backups still import (documented interpretation: site data kept).
 - [x] Local preview shows company/contact summary, footer-style links, the team grid in published order and profile pages; missing settings show an explicit empty state; SEO metadata preview does not claim production changes.
 - [x] Desktop and phone layouts, unsaved-changes guard, reload and Back/Forward work on the new screens.
+
+## Phase 3 — Tour taxonomies and Day trips
+
+- [x] Tour Packages keeps Tours List, Add Tour, Activities / day trips and Add Activity, and adds a clearly labelled Taxonomies entry; Activities / day trips and Add Activity open working Day Trips screens; all other groups, placeholders, the dashboard, account menu and mobile navigation still work.
+- [x] Four separate namespaces (types, categories, standards, tags); each term has a stable ID, namespace, label, key, display order, active state, timestamps and version. Nothing is seeded; each group explains that its values await owner confirmation.
+- [x] Labels and keys are unique within a namespace after documented normalisation; blank labels, malformed keys and cross-namespace references are rejected; IDs never change on rename; published keys are locked; terms cannot be permanently deleted.
+- [x] Searchable management screen with create/edit, keyboard Move up / Move down that keeps focus, and activate/deactivate.
+- [x] Deactivating a term changes no record; inactive terms are not offered for new selections, stay (with a warning) on records already using them, survive unrelated saves and remain displayed on published pages.
+- [x] Tour selectors use the managed terms; saved references are preserved and unresolved legacy values are shown explicitly, never silently replaced.
+- [x] Taxonomy changes follow a documented local publication step that never publishes content drafts; public previews show no management controls.
+- [x] Day trips: list search, status filter, deterministic sorting, create/edit, duplicate, archive/restore, draft save, local publish/unpublish and preview, with the proposed fields only (no accommodation, category, standard or type fields).
+- [x] Day-trip publication minimum (title, unique valid slug, overview, published destination, cover with alt, inclusion, explicit pricing); optional duration validated when supplied and never tied to the schedule count.
+- [x] Day-trip defaults editor; “Copy defaults into this draft” is explicit, warns before changing populated lists and never alters other records; editing defaults never changes day trips; nothing is seeded.
+- [x] Pricing reuses the decimal-safe implementation; per person / group / vehicle display correctly; missing differs from zero.
+- [x] Additive database upgrade (version 3) tested on a populated version-2 database with every existing module; records, snapshots, settings, team and image Blobs kept; existing terms keep their IDs.
+- [x] Drafts never republish; a destination used by a published day trip cannot be unpublished or archived; media used by day-trip drafts or published snapshots cannot be deleted; stale writes and failed transactions never report success.
+- [x] Local routes /tours/day-trips and /tours/day-trips/{slug} (hash equivalents documented) with no collision with tour slugs or hubs; listing shows published records only, destination and tag labels, correct price basis, optional schedule, inclusions/exclusions/what to bring and the shared footer; ?filter=tag&value= validated with readable empty states.
+- [x] Backup schemasVersion 3 round-trip (day trips, defaults, terms, published taxonomy, media); older v2 and v1 backups import with documented replace/keep rules, kept records validated against the imported content first, missing image files reported.
+- [x] After publishing a team profile, “Review team visibility” opens the existing order/visibility panel without publishing the order or other drafts.
+- [x] Desktop and phone layouts of the new screens, keyboard focus, unsaved-changes guard on the day-trip and defaults editors.
 
 Use meaningful repository/validation tests for persistence, publication snapshots, slug/dependency rules and import safety. Browser-check the critical create/edit/save/reload flow if browser tooling is available. Do not claim unperformed checks.

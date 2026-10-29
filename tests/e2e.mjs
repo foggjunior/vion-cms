@@ -144,14 +144,14 @@ await check('Sidebar list/Add entries open the working modules', async () => {
     expect((await page.locator('#moduleRoot h1').first().textContent()).trim() === heading, `${item} heading`);
   }
 });
+// Phase 3 wired Activities / day trips and Add Activity (previously placeholders) and added Taxonomies.
 await check('Other modules remain honest placeholders; Add Tour quick action opens the tour editor', async () => {
   await open(`#/dashboard`);
   await openNav(page, 'Bookings', 'All Bookings');
   await page.locator('#modulePreview').waitFor({ state: 'visible', timeout: 3000 });
   expect(/NOT BUILT IN THIS PROTOTYPE/.test(await text('#modulePreview')), 'placeholder wording');
-  await openNav(page, 'Tour Packages', 'Activities / day trips');
-  await page.locator('#modulePreview h2', { hasText: 'Activities / day trips' }).waitFor({ timeout: 3000 });
-  expect(/out of scope/.test(await text('#modulePreview')), 'day-trip placeholder note');
+  await openNav(page, 'Blogs', 'Blog Posts');
+  await page.locator('#modulePreview h2', { hasText: 'Blog Posts' }).waitFor({ timeout: 3000 });
   await open(`#/dashboard`);
   await page.locator('.quick-action', { hasText: 'Add Tour' }).click();
   await page.waitForSelector('#moduleRoot h1');
@@ -546,7 +546,7 @@ await check('JSON export states binary exclusion; media backup is separate', asy
   dataFile = join(outDir, 'data.json');
   await d1.saveAs(dataFile);
   const data = JSON.parse(readFileSync(dataFile, 'utf8'));
-  expect(data.format === 'vion-cms-local-backup' && data.schemasVersion === 2 && data.binaryAssetsIncluded === false && /does NOT contain image files/.test(data.notice), 'data backup header');
+  expect(data.format === 'vion-cms-local-backup' && data.schemasVersion === 3 && data.binaryAssetsIncluded === false && /does NOT contain image files/.test(data.notice), 'data backup header');
   expect(data.records.length >= 6 && data.assets.length === 1 && !JSON.stringify(data).includes('dataBase64'), 'data backup contents');
   const [d2] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Download media backup/ }).click()]);
   mediaFile = join(outDir, 'media.json');
@@ -897,7 +897,7 @@ await check('Backup: data + media round-trip restores settings, team order and p
   const siteMedia = join(outDir, 'site-media.json');
   await d2.saveAs(siteMedia);
   const data = JSON.parse(readFileSync(siteData, 'utf8'));
-  expect(data.schemasVersion === 2 && data.siteRecords.length === 6 && data.sitePublished.some(p => p.id === 'team-lineup'), `site collections: ${data.siteRecords.length}`);
+  expect(data.schemasVersion === 3 && data.siteRecords.length === 6 && data.sitePublished.some(p => p.id === 'team-lineup'), `site collections: ${data.siteRecords.length}`);
   const fresh = await newContext();
   const p2 = watch(await fresh.newPage());
   await p2.goto(`${base}/#/backup`);
@@ -921,16 +921,18 @@ await check('Backup: data + media round-trip restores settings, team order and p
   expect(await p2.inputValue('#f-company-name') === 'DRAFT Name Co', 'settings draft not restored');
   // An older (schemasVersion 1) backup: the confirm explains that settings and team are kept.
   const legacy = JSON.parse(readFileSync(dataFile, 'utf8'));
-  delete legacy.siteRecords; delete legacy.sitePublished; legacy.schemasVersion = 1;
+  for (const key of ['siteRecords', 'sitePublished', 'taxonomyPublication', 'dayTripDefaults']) delete legacy[key];
+  legacy.schemasVersion = 1;
+  legacy.taxonomies = legacy.taxonomies.map(({ key, order, active, ...t }) => t);
   const legacyFile = join(outDir, 'legacy-v1.json');
   writeFileSync(legacyFile, JSON.stringify(legacy));
   await open('#/backup', p2);
   await p2.setInputFiles('#import-data-file', legacyFile);
   await p2.waitForSelector('dialog[open]');
-  expect(/made before Site Settings and Team existed/.test(await p2.locator('dialog[open]').innerText()), 'legacy notice missing');
+  expect(/made before Site Settings, Team and Day Trips existed/.test(await p2.locator('dialog[open]').innerText()), 'legacy notice missing');
   await p2.locator('dialog[open]').getByRole('button', { name: 'Replace local content' }).click();
   await p2.waitForSelector('text=Import complete');
-  expect(/Kept 6 site records/.test(await p2.locator('#moduleRoot').innerText()), await p2.locator('#moduleRoot .notice-success').innerText());
+  expect(/6 site records/.test(await p2.locator('#moduleRoot').innerText()), await p2.locator('#moduleRoot .notice-success').innerText());
   await open('#/settings', p2);
   expect(await p2.inputValue('#f-company-name') === 'DRAFT Name Co', 'legacy import removed settings');
   await open('#/team/preview?rev=draft', p2);
@@ -968,6 +970,360 @@ await check('Mobile: settings, team list and local site fit 390px; ordering butt
   await mobile.close();
 });
 await page.screenshot({ path: join(outDir, 'desktop-team.png') });
+
+// ---- 8b. Phase 3: taxonomies and day trips ----
+const noOverflow = target => target.evaluate(() => document.documentElement.scrollWidth - window.innerWidth <= 0);
+
+await check('Taxonomies: Tour Packages entry; per-group terms; blank, duplicate and malformed values rejected; keyboard order keeps focus; search; publish', async () => {
+  await open('#/dashboard');
+  await openNav(page, 'Tour Packages', 'Taxonomies');
+  await page.waitForFunction(() => { const r = document.getElementById('moduleRoot'); return r.dataset.ready === 'true' && r.dataset.renderedRoute === '#/taxonomies'; });
+  expect((await page.locator('#moduleRoot h1').textContent()) === 'Taxonomies', 'heading');
+  const labels = await page.$$eval('#submenu-1 button', els => els.map(e => e.textContent));
+  expect(JSON.stringify(labels) === JSON.stringify(['Tours List', 'Add Tour', 'Activities / day trips', 'Add Activity', 'Taxonomies']), JSON.stringify(labels));
+  expect(/await owner confirmation/.test(await text('#moduleRoot')) && /nothing is pre-filled/.test(await text('#moduleRoot')), 'neutral explanation missing');
+  await tab('Tour tags');
+  const add = async (label, key = '') => {
+    await page.fill('#term-new-tag-label', label);
+    await page.fill('#term-new-tag-key', key);
+    await page.click('#taxonomy-panel-tag button:has-text("Add tour tag")');
+  };
+  await page.fill('#term-new-tag-label', 'Birding');
+  expect(await page.inputValue('#term-new-tag-key') === 'birding', 'key not suggested');
+  for (const label of ['Birding', 'Culture', 'Marine']) {
+    await add(label);
+    await page.waitForSelector(`#taxonomy-panel-tag td.cell-title strong:text-is("${label}")`);
+  }
+  await add(' birding ');
+  await page.waitForSelector('#term-new-tag-label-error:not([hidden])');
+  expect(/already exists as a tour tag/.test(await text('#term-new-tag-label-error')), await text('#term-new-tag-label-error'));
+  await add('Night walks', 'Night Walks');
+  await page.waitForSelector('#term-new-tag-key-error:not([hidden])');
+  expect(/lowercase letters/.test(await text('#term-new-tag-key-error')) && await page.evaluate(() => document.activeElement.id) === 'term-new-tag-key', 'malformed key not focused');
+  await add('   ');
+  await page.waitForFunction(() => /Blank labels/.test(document.getElementById('term-new-tag-label-error').textContent));
+  await page.getByRole('button', { name: 'Move Marine up' }).focus();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => [...document.querySelectorAll('#taxonomy-panel-tag td.cell-title strong')].map(e => e.textContent).join() === 'Birding,Marine,Culture');
+  expect(await page.evaluate(() => document.activeElement.getAttribute('aria-label')) === 'Move Marine up', 'focus did not stay on the moved term');
+  await page.fill('#taxonomy-search', 'mar');
+  await page.waitForFunction(() => document.querySelectorAll('#taxonomy-panel-tag tbody tr').length === 1);
+  expect(await page.locator('#taxonomy-panel-tag button[aria-label^="Move"]').count() === 0, 'ordering offered while filtered');
+  await page.fill('#taxonomy-search', '');
+  const cultureId = await page.getAttribute('button[aria-label="Edit Culture"]', 'data-term');
+  await page.click('button[aria-label="Edit Culture"]');
+  await page.fill('#term-edit-label', 'Cultural visits');
+  await dialogButton('Save');
+  await page.waitForSelector('button[aria-label="Edit Cultural visits"]');
+  expect(await page.getAttribute('button[aria-label="Edit Cultural visits"]', 'data-term') === cultureId, 'rename changed the ID');
+  expect(/Key culture/.test(await text('#taxonomy-panel-tag')), 'key changed on rename');
+  await tab('Tour types');
+  await page.fill('#term-new-type-label', 'Private safari');
+  await page.click('#taxonomy-panel-type button:has-text("Add tour type")');
+  await page.waitForSelector('#taxonomy-panel-type td.cell-title strong:text-is("Private safari")');
+  expect(/4 unpublished changes/.test(await text('.taxonomy-publication')), await text('.taxonomy-publication'));
+  await page.click('[data-action="publish-taxonomy"]');
+  await dialogButton('Publish taxonomy changes');
+  await page.waitForFunction(() => /Published taxonomy is up to date/.test(document.querySelector('.taxonomy-publication').textContent));
+  await tab('Tour tags');
+  expect(!/\bnull\b|undefined/.test(await text('#moduleRoot')), 'stray null/undefined text rendered');
+  await page.screenshot({ path: join(outDir, 'desktop-taxonomies.png'), fullPage: true });
+});
+
+await check('Tours: selectors offer active managed terms; an inactive saved selection stays, is flagged and does not block unrelated saves', async () => {
+  await open('#/tours/new');
+  await page.fill('#f-title', 'Culture walk tour');
+  await tab('Destinations & classification');
+  await page.selectOption('#f-typeId', { label: 'Private safari' });
+  await page.locator('#f-tagIds label.check', { hasText: 'Cultural visits' }).locator('input').check();
+  await save();
+  expect(/Draft saved/.test(await status()), await status());
+  const tourHash = await page.evaluate(() => location.hash);
+  await open('#/taxonomies?group=tag');
+  await page.getByRole('button', { name: 'Deactivate Cultural visits' }).click();
+  expect(/Used by 1 record version; it keeps the term/.test(await page.locator('dialog[open]').innerText()), 'usage not explained');
+  await dialogButton('Deactivate');
+  await page.waitForSelector('button[aria-label="Activate Cultural visits"]');
+  await open(tourHash);
+  expect(/Term selections need attention/.test(await text('.editor-banners')), 'no inactive warning');
+  await tab('Destinations & classification');
+  const kept = page.locator('#f-tagIds label.check', { hasText: 'Cultural visits (inactive — kept)' }).locator('input');
+  expect(await kept.isChecked(), 'inactive selection dropped');
+  await tab('Basics');
+  await page.fill('#f-title', 'Culture walk tour (edited)');
+  await save();
+  expect(/Draft saved/.test(await status()), await status());
+  expect(/is inactive/.test(await text('.issue-summary')), 'warning not shown after saving');
+  await open('#/tours/new');
+  await tab('Destinations & classification');
+  expect(await page.locator('#f-tagIds', { hasText: 'Cultural visits' }).count() === 0, 'inactive tag offered for a new selection');
+  expect(await page.locator('#f-tagIds label.check', { hasText: 'Birding' }).count() === 1, 'active tag missing');
+});
+
+await check('Day-trip defaults: nothing pre-filled; lists save and survive reload', async () => {
+  await open('#/day-trips/defaults');
+  expect(/approved text was not provided/.test(await text('#moduleRoot')), 'proposed-behaviour notice');
+  expect(await page.locator('#moduleRoot .repeater-item').count() === 0, 'defaults pre-filled');
+  for (const value of ['Boat hire', 'Soft drinks']) { await page.fill('#f-defaults-inclusions', value); await page.keyboard.press('Enter'); }
+  await page.fill('#f-defaults-whatToBring', 'Sun hat');
+  await page.keyboard.press('Enter');
+  await save();
+  expect(/Defaults saved/.test(await status()) && /no day trip was changed/.test(await status()), await status());
+  await page.reload();
+  await page.waitForSelector('#f-defaults-inclusions');
+  expect(await page.locator('#moduleRoot .repeater-item').count() === 3, 'defaults not persisted');
+  await page.screenshot({ path: join(outDir, 'desktop-defaults.png'), fullPage: true });
+  await page.fill('#f-defaults-whatToBring', 'Torch');
+  await page.keyboard.press('Enter');
+  await openNav(page, 'Tour Packages', 'Tours List');
+  await page.waitForSelector('dialog[open]');
+  await dialogButton('Stay and keep editing');
+  expect(await page.evaluate(() => location.hash) === '#/day-trips/defaults' && await page.locator('#moduleRoot .repeater-item').count() === 4, 'unsaved-changes guard did not keep the edit');
+  await page.getByRole('button', { name: 'Remove item 2: Torch' }).click();
+  await page.waitForFunction(() => document.querySelector('.save-status').dataset.state !== 'dirty');
+});
+
+let tripId;
+await check('Day trips: Add Activity opens the editor; invalid duration rejected; defaults copied on request; schedule reorder keeps focus; publish and preview', async () => {
+  await open('#/destinations/new');
+  await page.fill('#f-title', 'Zanzibar Stone Town');
+  await tab('Content');
+  await page.fill('#f-overview', 'Historic streets and carved doors.');
+  await page.fill('#f-bestTime', 'June to October.');
+  await reuseCover('serengeti.png');
+  await page.fill('#f-cover-alt', 'Carved wooden door in Stone Town');
+  await publish();
+  expect(/Published locally/.test(await status()), await status());
+
+  await open('#/dashboard');
+  await openNav(page, 'Tour Packages', 'Add Activity');
+  await page.waitForFunction(() => { const r = document.getElementById('moduleRoot'); return r.dataset.ready === 'true' && r.dataset.renderedRoute === '#/day-trips/new'; });
+  expect((await page.locator('#moduleRoot h1').textContent()) === 'New day trip', 'heading');
+  await page.fill('#f-title', 'Sunset Dhow Cruise');
+  expect(await page.inputValue('#f-slug') === 'sunset-dhow-cruise', 'slug not generated');
+  expect(/\/tours\/day-trips\/sunset-dhow-cruise/.test(await text('.route-preview')), 'route preview');
+  await page.fill('#f-duration-value', '0');
+  await save();
+  expect(/Not saved/.test(await status()) && /more than zero/.test(await text('#f-duration-value-error')), 'zero duration accepted');
+  await page.fill('#f-duration-value', '2.5');
+  await save();
+  expect(/Draft saved/.test(await status()), await status());
+  tripId = await currentId();
+  await page.reload();
+  await page.waitForSelector('#f-title');
+  expect(await page.inputValue('#f-duration-value') === '2.5', 'duration lost on reload');
+
+  await tab('Inclusions & preparation');
+  await page.fill('#f-inclusions', 'Own inclusion');
+  await page.keyboard.press('Enter');
+  await page.click('#copy-defaults');
+  await page.waitForSelector('dialog[open]');
+  expect(/already has entries/.test(await page.locator('dialog[open]').innerText()) && /lists 1 inclusion/.test(await page.locator('dialog[open]').innerText()), 'no warning before changing populated lists');
+  await dialogButton('Add missing defaults');
+  await page.waitForFunction(() => /Added 2 default inclusions/.test(document.getElementById('copy-defaults-status')?.textContent || ''));
+  const values = sel => page.$$eval(`fieldset:has(${sel}) .repeater-item input`, els => els.map(e => e.value));
+  expect(JSON.stringify(await values('#f-inclusions')) === JSON.stringify(['Own inclusion', 'Boat hire', 'Soft drinks']), JSON.stringify(await values('#f-inclusions')));
+  expect(JSON.stringify(await values('#f-whatToBring')) === JSON.stringify(['Sun hat']), 'what to bring not copied');
+  await page.screenshot({ path: join(outDir, 'desktop-daytrip-inclusions.png'), fullPage: true });
+
+  await tab('Overview & schedule');
+  await page.fill('#f-overview', 'An evening sailing past Stone Town.');
+  await page.click('#f-schedule');
+  await page.fill('#f-schedule-0-heading', 'Boarding');
+  await page.click('#f-schedule');
+  await page.fill('#f-schedule-1-heading', 'Sunset');
+  await page.getByRole('button', { name: 'Move Schedule item 2 up' }).focus();
+  await page.keyboard.press('Enter');
+  expect(await page.inputValue('#f-schedule-0-heading') === 'Sunset', 'schedule not reordered');
+  expect(await page.evaluate(() => document.activeElement.closest('.repeater-item')?.querySelector('input')?.value) === 'Sunset', 'focus left the moved item');
+
+  await page.click('[data-action="publish"]');
+  await page.waitForSelector('.issue-summary.has-errors');
+  const summary = await text('.issue-summary');
+  expect(/Link at least one published destination/.test(summary) && /Choose a cover image/.test(summary) && !/exclusion/i.test(summary), summary);
+
+  await tab('Destinations & tags');
+  await page.locator('fieldset.relation-picker label.option', { hasText: 'Zanzibar Stone Town' }).locator('input').check();
+  expect(await page.locator('#f-tagIds', { hasText: 'Cultural visits' }).count() === 0, 'inactive tag offered');
+  await page.locator('#f-tagIds label.check', { hasText: 'Birding' }).locator('input').check();
+  await reuseCover('serengeti.png');
+  await page.fill('#f-cover-alt', 'Dhow sails against the sunset');
+  await tab('Pricing');
+  await page.check('#f-pricing-mode input[value="manualFrom"]');
+  await page.fill('#f-pricing-currency', 'USD');
+  await page.fill('#f-pricing-amount', '0');
+  await page.selectOption('#f-pricing-basis', 'perGroup');
+  await page.fill('#f-pricing-applicability', 'Private boat for up to 6 guests.');
+  expect(/From USD.0 per group/.test(await text('.price-display')), await text('.price-display'));
+  await publish();
+  expect(/Published locally/.test(await status()), await status());
+  await open(`#/day-trips/${tripId}/preview?rev=published`);
+  const body = await text('.preview-page');
+  for (const pattern of [/per group/, /Birding/, /2\.5 hours/, /Zanzibar Stone Town/, /Sunset[\s\S]*Boarding/, /What to bring[\s\S]*Sun hat/, /Own inclusion/]) expect(pattern.test(body), `${pattern} missing from preview`);
+  expect(!/per person/.test(body), 'per person shown for a per-group price');
+  expect(!/\bnull\b|undefined/.test(await text('#moduleRoot')), 'stray null/undefined text rendered');
+  await page.screenshot({ path: join(outDir, 'desktop-daytrip-preview.png'), fullPage: true });
+});
+
+await check('Day trips: draft edits do not change the published preview; list search and status filters; duplicate', async () => {
+  await open(`#/day-trips/${tripId}`);
+  await tab('Overview & schedule');
+  await page.fill('#f-overview', 'Changed draft overview.');
+  await save();
+  expect(/published version unchanged/.test(await status()), await status());
+  await open(`#/day-trips/${tripId}/preview?rev=published`);
+  expect(!/Changed draft overview/.test(await text('.preview-page')), 'draft leaked into the published snapshot');
+  await open('#/day-trips/new');
+  await page.fill('#f-title', 'Spice Farm Tour');
+  await save();
+  await open('#/day-trips?status=changes');
+  const changed = await text('#moduleRoot .list-results');
+  expect(/Sunset Dhow Cruise/.test(changed) && !/Spice Farm Tour/.test(changed), changed);
+  await open('#/day-trips?q=spice');
+  expect(/Spice Farm Tour/.test(await text('#moduleRoot .list-results')) && !/Sunset Dhow/.test(await text('#moduleRoot .list-results')), 'search');
+  await open('#/day-trips?q=spice');
+  await page.getByRole('button', { name: 'Duplicate Spice Farm Tour' }).click();
+  await page.waitForFunction(() => /Spice Farm Tour \(copy\)/.test(document.querySelector('#moduleRoot h1')?.textContent || ''));
+  expect(await page.inputValue('#f-slug') === 'spice-farm-tour-copy', 'duplicate slug');
+});
+
+await check('Local day-trip listing: published only; ?filter=tag&value= works; unknown filter and value stay readable; no management controls', async () => {
+  await open('#/site/tours/day-trips');
+  const listing = await text('#moduleRoot');
+  expect(/Sunset Dhow Cruise/.test(listing) && !/Spice Farm Tour/.test(listing), 'drafts shown or published trip missing');
+  expect(/#\/site\/tours\/day-trips/.test(listing), 'local URL equivalent not documented on the page');
+  await page.locator('.filter-chip', { hasText: 'Birding' }).click();
+  await page.waitForFunction(() => { const r = document.getElementById('moduleRoot'); return location.hash === '#/site/tours/day-trips?filter=tag&value=birding' && r.dataset.ready === 'true' && r.dataset.renderedRoute === location.hash; });
+  expect(/1 day trip tagged “Birding”/.test(await text('.list-count')), await text('.list-count'));
+  await page.screenshot({ path: join(outDir, 'desktop-daytrip-listing.png'), fullPage: true });
+  await open('#/site/tours/day-trips?filter=tag&value=no-such-tag');
+  expect(/No published tag has the key “no-such-tag”/.test(await text('#moduleRoot')) && await page.locator('#moduleRoot a', { hasText: 'Show all day trips' }).count() === 1, 'unknown value state');
+  await open('#/site/tours/day-trips?filter=colour&value=red');
+  expect(/not supported/.test(await text('.notice-warning')) && /Sunset Dhow Cruise/.test(await text('.card-grid')), 'invalid filter state');
+  await open('#/site/tours/day-trips/sunset-dhow-cruise');
+  const detail = await text('.preview-page');
+  expect(/per group/.test(detail) && /Birding/.test(detail) && !/inactive|Unresolved|\bEdit\b|Key /.test(detail), detail.slice(0, 300));
+  expect(await page.locator('#moduleRoot .site-footer').count() === 1, 'shared footer missing');
+  await open('#/site');
+  expect(/Sunset Dhow Cruise/.test(await text('#moduleRoot')), 'home page lacks published day trips');
+});
+
+await check('A destination used by a published day trip cannot be unpublished or archived; no cascade', async () => {
+  const destinationId = await page.evaluate(async () => [...(await (await window.__vionApp.workspace()).loadContext()).records.values()].find(e => e.record.title === 'Zanzibar Stone Town').id);
+  await open(`#/destinations/${destinationId}`);
+  for (const [action, label, title] of [['unpublish', 'Unpublish', 'Cannot unpublish yet'], ['archive', 'Archive', 'Cannot archive yet']]) {
+    await page.click(`[data-action="${action}"]`);
+    await dialogButton(label);
+    await page.waitForSelector('dialog[open]');
+    const message = await page.locator('dialog[open]').innerText();
+    expect(message.includes(title) && /Day trip “Sunset Dhow Cruise”/.test(message), message);
+    await dialogButton('OK');
+  }
+  expect(await page.evaluate(async id => (await (await window.__vionApp.workspace()).loadContext()).published.has(id), destinationId), 'destination unpublished');
+  expect(await page.evaluate(async id => (await (await window.__vionApp.workspace()).loadContext()).records.get(id).record.status, tripId) === 'published', 'day trip changed by the attempt');
+});
+
+await check('Team: after publishing a profile, “Review team visibility” opens the order and visibility panel without publishing the order', async () => {
+  const id = await page.evaluate(async () => [...(await (await window.__vionApp.workspace()).loadContext()).siteRecords.values()].find(e => e.kind === 'teamMember' && e.record.status !== 'archived' && e.record.portrait && e.record.position)?.id);
+  expect(id, 'no publishable profile');
+  const lineupRevision = () => page.evaluate(async () => (await (await window.__vionApp.workspace()).site.getPublishedLineup())?.revision ?? null);
+  const before = await lineupRevision();
+  await open(`#/team/${id}`);
+  await page.fill('#f-bio', `Updated biography ${Date.now()}.`);
+  await publish();
+  expect(/Published locally/.test(await status()), await status());
+  await page.locator('.editor-banners a[data-action="review-visibility"]').click();
+  await page.waitForFunction(() => location.hash === '#/team?focus=lineup' && document.getElementById('moduleRoot').dataset.ready === 'true');
+  await page.waitForFunction(() => document.activeElement?.id === 'lineup-heading', null, { timeout: 5000 });
+  await page.screenshot({ path: join(outDir, 'desktop-team-review.png') });
+  expect(await lineupRevision() === before, 'the team order was published');
+});
+
+await check('Backup: day trips, defaults, terms and the published taxonomy round-trip; an older (v2) backup keeps local day trips', async () => {
+  await open('#/backup');
+  await page.waitForSelector('.storage-status p');
+  const [d1] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Download data backup/ }).click()]);
+  const dtData = join(outDir, 'daytrip-data.json');
+  await d1.saveAs(dtData);
+  const [d2] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Download media backup/ }).click()]);
+  const dtMedia = join(outDir, 'daytrip-media.json');
+  await d2.saveAs(dtMedia);
+  const data = JSON.parse(readFileSync(dtData, 'utf8'));
+  const trips = data.records.filter(r => r.kind === 'dayTrip');
+  expect(data.schemasVersion === 3 && trips.length === 3 && data.dayTripDefaults?.inclusions.length === 2 && data.taxonomyPublication?.terms.length === 4, `v3 contents: ${trips.length} trips`);
+  const fresh = await newContext();
+  const p2 = watch(await fresh.newPage());
+  await p2.goto(`${base}/#/backup`);
+  await p2.waitForSelector('#import-data-file', { state: 'attached' });
+  await p2.setInputFiles('#import-data-file', dtData);
+  await p2.waitForSelector('dialog[open]');
+  expect(/3 day trips/.test(await p2.locator('dialog[open]').innerText()) && /day-trip defaults/.test(await p2.locator('dialog[open]').innerText()), 'confirm lacks day trips');
+  await p2.locator('dialog[open]').getByRole('button', { name: 'Replace local content' }).click();
+  await p2.waitForSelector('text=Import complete');
+  await p2.setInputFiles('#import-media-file', dtMedia);
+  await p2.waitForSelector('text=Media restored');
+  await open('#/site/tours/day-trips/sunset-dhow-cruise', p2);
+  await p2.waitForFunction(() => document.querySelector('.preview-hero img')?.naturalWidth > 0, null, { timeout: 5000 });
+  expect(/Birding/.test(await p2.locator('.preview-page').innerText()), 'tag label not restored');
+  await open('#/day-trips/defaults', p2);
+  expect(await p2.locator('#moduleRoot .repeater-item').count() === 3, 'defaults not restored');
+  const legacy = structuredClone(data);
+  legacy.schemasVersion = 2;
+  delete legacy.taxonomyPublication;
+  delete legacy.dayTripDefaults;
+  legacy.records = legacy.records.filter(r => r.kind !== 'dayTrip');
+  legacy.published = legacy.published.filter(p => p.kind !== 'dayTrip');
+  legacy.redirects = legacy.redirects.filter(r => r.kind !== 'dayTrip');
+  legacy.taxonomies = legacy.taxonomies.map(({ key, order, active, ...t }) => t);
+  const legacyFile = join(outDir, 'legacy-v2.json');
+  writeFileSync(legacyFile, JSON.stringify(legacy));
+  await open('#/backup', p2);
+  await p2.setInputFiles('#import-data-file', legacyFile);
+  await p2.waitForSelector('dialog[open]');
+  const confirmText = await p2.locator('dialog[open]').innerText();
+  expect(/made before Day Trips existed/.test(confirmText) && /Kept from this browser: 3 day trips/.test(confirmText), confirmText);
+  await p2.locator('dialog[open]').getByRole('button', { name: 'Replace local content' }).click();
+  await p2.waitForSelector('text=Import complete');
+  expect(/Kept 3 day trips/.test(await p2.locator('#moduleRoot .notice-success').innerText()), await p2.locator('#moduleRoot .notice-success').innerText());
+  await open('#/day-trips?status=all', p2);
+  expect(/Sunset Dhow Cruise/.test(await p2.locator('#moduleRoot tbody').innerText()), 'day trips lost by the older import');
+  await fresh.close();
+});
+
+await check('Mobile: Taxonomies, day-trip list and editor, and the local day-trip listing fit 390px', async () => {
+  const mobile = await newContext({ width: 390, height: 844 });
+  const m = watch(await mobile.newPage());
+  await m.goto(`${base}/`);
+  await m.click('#menuButton');
+  await openNav(m, 'Tour Packages', 'Taxonomies');
+  await m.waitForSelector('#taxonomy-search');
+  expect(await m.locator('#sidebar.open').count() === 0, 'sidebar did not close');
+  await m.fill('#term-new-type-label', 'Mobile type');
+  await m.click('#taxonomy-panel-type button:has-text("Add tour type")');
+  await m.waitForSelector('#taxonomy-panel-type td.cell-title strong:text-is("Mobile type")');
+  expect(await noOverflow(m), 'taxonomy screen overflows');
+  await m.screenshot({ path: join(outDir, 'mobile-taxonomies.png') });
+  await m.click('#menuButton');
+  await openNav(m, 'Tour Packages', 'Add Activity');
+  await m.waitForSelector('#f-title');
+  await m.fill('#f-title', 'Mobile day trip');
+  await m.click('[data-action="save"]');
+  await m.waitForSelector('.save-status[data-state="saved"]');
+  for (const name of ['Basics', 'Inclusions & preparation', 'Pricing']) {
+    await m.getByRole('tab', { name }).click();
+    expect(await noOverflow(m), `${name} tab overflows`);
+  }
+  await m.screenshot({ path: join(outDir, 'mobile-daytrip-editor.png') });
+  await open('#/day-trips', m);
+  await m.waitForSelector('#moduleRoot .table-scroll');
+  expect(!/\bnull\b|undefined/.test(await m.locator('#moduleRoot').innerText()), 'stray null/undefined text rendered');
+  expect(await m.evaluate(() => getComputedStyle(document.querySelector('#moduleRoot .table-scroll')).overflowX) === 'auto' && await noOverflow(m), 'day-trip list overflows');
+  await m.screenshot({ path: join(outDir, 'mobile-daytrip-list.png') });
+  await open('#/site/tours/day-trips?filter=tag&value=nothing', m);
+  expect(await noOverflow(m), 'listing overflows');
+  await mobile.close();
+});
+await page.screenshot({ path: join(outDir, 'desktop-daytrips.png') });
 
 // ---- 9. Mobile ----
 await check('Narrow mobile: sidebar menu works, forms fit without page-level horizontal scroll, tables scroll', async () => {
@@ -1021,6 +1377,26 @@ await check('Keyboard focus is visible on the hidden-input upload buttons', asyn
   await page.focus('#library-upload');
   const outline = await page.evaluate(() => getComputedStyle(document.querySelector('label[for="library-upload"]')).outlineStyle);
   expect(outline === 'solid', `upload label outline: ${outline}`);
+});
+
+await check('A stale cached module shows the real error and “Refresh CMS files and reload” recovers', async () => {
+  // Simulates a browser that reused an old cached copy of one module after an update: the first response for
+  // content-repository.js lacks an export that newer modules import. Not watched: the page error is expected.
+  const ctx = await newContext();
+  const p = await ctx.newPage();
+  const current = await (await fetch(`${base}/src/storage/content-repository.js`)).text();
+  let served = 0;
+  await p.route(url => url.pathname === '/src/storage/content-repository.js', route => (served++ === 0
+    ? route.fulfill({ status: 200, contentType: 'text/javascript', body: current.replace('export const CONTEXT_STORES', 'const CONTEXT_STORES') })
+    : route.continue()));
+  await p.goto(`${base}/#/settings`);
+  await p.waitForSelector('.boot-error', { timeout: 5000 });
+  const note = await p.locator('.boot-error').innerText();
+  expect(/does not provide an export named 'CONTEXT_STORES'/.test(note) && /cached copies/.test(note), note);
+  await Promise.all([p.waitForEvent('load'), p.click('.boot-error button')]);
+  await p.waitForSelector('#f-company-name', { timeout: 10000 });
+  expect(await p.locator('.boot-error').count() === 0, 'boot error still shown after refresh');
+  await ctx.close();
 });
 
 await page.screenshot({ path: join(outDir, 'desktop-final.png') });

@@ -1,9 +1,10 @@
-// Opens the local workspace: one IndexedDB database shared by the content, site (settings + team), media,
-// taxonomy and backup services.
+// Opens the local workspace: one IndexedDB database shared by the content (destinations, accommodations, tours,
+// day trips), site (settings + team), media, taxonomy, day-trip defaults and backup services.
 import { StorageError, openDatabase } from './idb.js';
 import { createContentRepository } from './content-repository.js';
 import { createMediaRepository } from './media-repository.js';
 import { createTaxonomyRepository } from './taxonomy-repository.js';
+import { createDefaultsRepository } from './defaults-repository.js';
 import { createSiteRepository } from './site-repository.js';
 import { createBackupService } from './backup.js';
 import { createSchemaValidator } from '../modules/shared/schema-validator.js';
@@ -62,6 +63,7 @@ export async function openWorkspace({ dbName = DEFAULT_DB_NAME, schema, siteSche
     site: createSiteRepository(options),
     media: createMediaRepository(options),
     taxonomies: createTaxonomyRepository(options),
+    defaults: createDefaultsRepository(options),
     backup: createBackupService(options),
     loadContext: () => content.loadContext(),
     close() { events.close(); db.close(); }

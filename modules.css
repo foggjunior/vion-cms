@@ -13,6 +13,8 @@
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .boot-error { background: var(--error-soft); color: var(--error); padding: 14px 20px; font-size: 13px; position: relative; z-index: 100; }
+.boot-error p { margin: 0 0 8px; max-width: 110ch; overflow-wrap: anywhere; }
+.boot-error .primary-button:disabled { opacity: .6; cursor: wait; }
 
 /* Global focus visibility for form controls and links inside modules */
 #moduleRoot :is(input, select, textarea, a, summary):focus-visible,
@@ -273,11 +275,31 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .tool-panel { margin-bottom: 14px; }
 .tool-panel .notice { margin-top: 4px; }
 .storage-status p { font-size: 13px; }
-.taxonomy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.taxonomy-card h2 { margin-bottom: 8px; }
-.term-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.term-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 6px; align-items: center; }
-.term-list small { font-size: 10px; white-space: nowrap; }
+
+/* Taxonomies (Tour Packages › Taxonomies) and term fields */
+.taxonomy-publication { margin-bottom: 14px; }
+.taxonomy-publication .badge-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0 4px !important; }
+.taxonomy-table td:first-child { white-space: nowrap; }
+.taxonomy-table .cell-title { white-space: normal; min-width: 180px; }
+.taxonomy-table .cell-title strong { display: block; font-weight: 600; color: var(--ink); }
+.taxonomy-table .wrap-cell { white-space: normal; min-width: 140px; max-width: 280px; }
+.taxonomy-table tr.is-inactive .cell-title strong { color: var(--muted); }
+#moduleRoot code, .modal code { font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; background: #f4f1ea; color: #5b4a24; padding: 1px 5px; border-radius: 4px; }
+.term-add .form-grid { align-items: start; }
+.term-note { font-size: 12px; margin-top: 6px !important; }
+.term-problems { margin-top: 8px; }
+.term-problems .error-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.term-edit { display: grid; gap: 12px; min-width: min(420px, 80vw); }
+
+/* Day trips */
+.list-extras { margin: -4px 0 14px; }
+.list-extras .muted svg { width: 13px; height: 13px; vertical-align: -2px; }
+.defaults-panel { background: #fbf9f4; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.filter-chip { display: inline-flex; align-items: center; font-size: 12px; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--line); background: #fff; color: #5d6370; }
+.filter-chip:hover, .filter-chip.is-active { background: var(--gold-soft); border-color: #e2cfa3; color: var(--gold-dark); }
+.filter-chip.is-active { font-weight: 600; }
+.schedule-preview h3 { margin-bottom: 4px !important; }
 
 /* Previews */
 .segmented { display: inline-flex; border: 1px solid #ddd5c3; border-radius: 8px; overflow: hidden; background: #fff; }
@@ -309,7 +331,7 @@ figure.preview-hero figcaption, .gallery-item figcaption { font-size: 11px; colo
 .price-note { font-size: 12px; color: #4b505b; }
 .price-provisional { font-size: 10px; color: var(--warn); }
 .price-display { font-size: 13px; font-weight: 600; color: var(--gold-dark); margin-top: 14px !important; }
-.term-row { padding: 0 28px; }
+.term-row, .preview-pad { padding: 0 28px; }
 .term-row .tag { margin: 0 6px 0 0; }
 .itinerary-preview { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
 .itinerary-preview li { border-left: 3px solid var(--gold); padding-left: 14px; }
@@ -395,7 +417,6 @@ a.preview-card:hover { border-color: #d8bd82; box-shadow: 0 6px 20px #2d2a2212; 
 @media (max-width: 950px) {
   .preview-layout { grid-template-columns: 1fr; }
   .preview-aside { position: static; max-width: 340px; }
-  .taxonomy-grid { grid-template-columns: 1fr; }
   .site-footer-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 700px) {
@@ -407,11 +428,11 @@ a.preview-card:hover { border-color: #d8bd82; box-shadow: 0 6px 20px #2d2a2212; 
   .media-card, .media-card-compact { grid-template-columns: 1fr; }
   .media-card .media-preview, .media-card .media-thumb { max-width: 320px; }
   .tour-facts { grid-template-columns: 1fr; padding: 6px 16px 10px; }
-  .preview-head, .preview-section, .lead, .term-row { padding-left: 16px; padding-right: 16px; }
+  .preview-head, .preview-section, .lead, .term-row, .preview-pad { padding-left: 16px; padding-right: 16px; }
   .preview-head h1 { font-size: 24px !important; }
   .two-col { grid-template-columns: 1fr; }
   .seo-dl { grid-template-columns: 1fr; }
-  .term-list li { grid-template-columns: 1fr auto; }
+  .taxonomy-table .wrap-cell { min-width: 120px; }
   .upload-zone { flex-direction: column; align-items: flex-start; }
   .modal-actions { flex-wrap: wrap; }
   .row-actions { flex-wrap: nowrap; }

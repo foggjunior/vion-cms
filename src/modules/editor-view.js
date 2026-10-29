@@ -1,4 +1,5 @@
-// Generic record editor used by the destination, accommodation and tour modules.
+// Generic record editor used by the destination, accommodation, tour and day-trip modules (and, through an
+// adapter, by site settings and team profiles).
 import { button, clear, h, icon, linkButton } from '../components/dom.js';
 import { confirmDialog, messageDialog } from '../components/dialog.js';
 import { envelopeBadges, errorDetails, notice, toast } from '../components/feedback.js';
@@ -8,11 +9,25 @@ import { stringList } from '../components/repeater.js';
 import { relationOptions, relationPicker } from '../components/relation-picker.js';
 import { MediaUrlScope, coverField, galleryField, shareImageField } from '../components/media.js';
 import { openMediaPicker } from '../components/media-picker.js';
-import { formToRecord, hasUnpublishedChanges, newRecord, publicName, recordToForm } from './shared/records.js';
+import { TAXONOMY_NAMESPACES, descriptionSource, formToRecord, hasUnpublishedChanges, newRecord, publicName, recordToForm } from './shared/records.js';
 import { findRouteConflict, routeFor, slugify } from './shared/routes.js';
-import { SEO_DESCRIPTION_ADVICE, SEO_TITLE_ADVICE, errorsOnly, hasErrors, validateDraft, validatePublish } from './shared/validation.js';
-import { formatDateTime, formatTime, truncateWords } from './shared/format.js';
+import { SEO_DESCRIPTION_ADVICE, SEO_TITLE_ADVICE, errorsOnly, hasErrors, termAttention, validateDraft, validatePublish } from './shared/validation.js';
+import { formatDateTime, formatTime, shortId, truncateWords } from './shared/format.js';
 import { describePrice } from './shared/pricing.js';
+
+function termBanner(env, ctx) {
+  if (!env || env.record.status === 'archived') return [];
+  const refs = termAttention(env.record, ctx);
+  if (!refs.length) return [];
+  const text = ref => {
+    const group = TAXONOMY_NAMESPACES[ref.namespace].toLowerCase();
+    if (ref.state === 'inactive') return `the ${group} “${ref.term.label}” is inactive (kept and still displayed)`;
+    if (ref.state === 'unresolved') return `a ${group} value (ID ${shortId(ref.id)}) is not a managed term`;
+    return `“${ref.term.label}” is a ${TAXONOMY_NAMESPACES[ref.term.namespace].toLowerCase()} used as a ${group}`;
+  };
+  return [notice('warning', h('strong', null, 'Term selections need attention: '), `${refs.map(text).join('; ')}. `,
+    'Saving unrelated edits keeps inactive selections. Unresolved or wrong-group values block publishing until they are cleared or replaced.')];
+}
 
 const getPath = (obj, path) => path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
 function setPath(obj, path, value) {
@@ -38,6 +53,7 @@ const CONTENT_ADAPTER = {
   archive: (ws, env) => ws.content.archive(env.id, { expectedVersion: env.record.version }),
   restore: (ws, env) => ws.content.restore(env.id, { expectedVersion: env.record.version }),
   duplicate: (ws, env) => ws.content.duplicate(env.id),
+  banners: termBanner,
   listHref: def => `#/${def.path}`,
   editorHref: (def, id) => `#/${def.path}/${id}`,
   previewHref: (def, env, rev) => `#/${def.path}/${env.id}/preview${rev ? `?rev=${rev}` : ''}`,
@@ -107,7 +123,7 @@ export async function createEditorView({ def, id, app }) {
 
   // ---- field binding helpers handed to section renderers ----
   const ed = {
-    def, adapter, get model() { return model; }, get ctx() { return ctx; }, get env() { return env; }, get readOnly() { return readOnly(); }, scope, changed,
+    def, adapter, get model() { return model; }, get ctx() { return ctx; }, get env() { return env; }, get readOnly() { return readOnly(); }, get ws() { return ws; }, scope, changed,
     selectTab(sectionId) { tabs.select(sectionId, true); },
     text(path, { label, hint, required, multiline, rows, placeholder, inputmode, wide, counter, onInput, list } = {}) {
       const fid = fieldIdFor(path);
@@ -453,6 +469,9 @@ export async function createEditorView({ def, id, app }) {
       if (JSON.stringify(model) === submitted) rebuild(published);
       else { keepEditsAfterWrite(published); renderBanners(); renderBar(); }
       applyIssues(warnings);
+      // Follow-up actions offered after publishing (for example reviewing team visibility).
+      const follow = adapter.afterPublish?.(published, ctx) || [];
+      if (follow.length) renderBanners(follow);
       const redirect = published.redirectPlan?.add[0];
       setStatus('saved', `Published locally ${formatTime(published.workflow.lastPublishedAt)} (revision ${published.workflow.publishedRevision})`);
       toast(adapter.publishedToast?.(published, ctx) || (redirect ? `Published locally. Planned local redirect ${redirect.from} → ${redirect.to}.` : 'Published to the local preview.'));
@@ -570,7 +589,7 @@ function seoSection(ed) {
   const updateFallback = () => {
     const record = formToRecord(model).record;
     const title = record.seo.title || publicName(record);
-    const description = record.seo.description || truncateWords(record.kind === 'tour' ? record.summary || record.overview : record.kind === 'destination' ? record.overview : record.description, SEO_DESCRIPTION_ADVICE);
+    const description = record.seo.description || truncateWords(descriptionSource(record), SEO_DESCRIPTION_ADVICE);
     clear(fallback).append(
       h('p', { class: 'seo-route' }, routeFor(record.kind, record.slug) || '(no slug yet)'),
       h('p', { class: 'seo-title' }, title || 'Untitled'),
@@ -598,7 +617,7 @@ function previewSection(ed) {
   const errors = errorsOnly(issues);
   const warnings = issues.filter(i => i.severity === 'warning');
   const env = ed.env;
-  const price = record.kind === 'tour' ? describePrice(record.pricing) : null;
+  const price = record.kind === 'tour' || record.kind === 'dayTrip' ? describePrice(record.pricing) : null;
   return [
     h('div', { class: 'form-group' },
       h('h3', { class: 'group-title' }, 'Publish readiness (current form)'),

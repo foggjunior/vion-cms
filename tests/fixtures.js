@@ -11,8 +11,14 @@ export const siteValidator = createSchemaValidator(siteSchema);
 
 export const envelope = (record, workflow = {}) => ({ id: record.id, kind: record.kind, record, workflow: { ...newWorkflow(), ...workflow } });
 
-export function context({ records = [], published = [], assets = [], taxonomies = [], redirects = [], blobs = true } = {}) {
-  return makeContext({ records, published, redirects, assets, blobKeys: blobs ? assets.map(a => a.id) : [], taxonomies, validator });
+export function context({ records = [], published = [], assets = [], taxonomies = [], taxonomyPublication = null, redirects = [], blobs = true } = {}) {
+  return makeContext({ records, published, redirects, assets, blobKeys: blobs ? assets.map(a => a.id) : [], taxonomies, taxonomyPublication, validator });
+}
+
+// A managed term in the current (schema v3) shape.
+export function term(namespace, label, overrides = {}) {
+  const now = new Date().toISOString();
+  return { id: crypto.randomUUID(), namespace, label, key: label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), order: 1, active: true, createdAt: now, updatedAt: now, version: 1, ...overrides };
 }
 
 export function siteContext({ assets = [], siteRecords = [], sitePublished = [], blobs = true } = {}) {
@@ -54,6 +60,13 @@ export function completeTour(a, destinationIds, overrides = {}) {
   return {
     ...newRecord('tour', { title: 'Two Day Serengeti Safari' }), slug: 'two-day-serengeti-safari', overview: 'A short safari.', durationDays: 2,
     destinationIds, itinerary, inclusions: ['Park fees'], exclusions: ['Flights'], cover: cover(a, 'Jeep on the plains'), ...overrides
+  };
+}
+
+export function completeDayTrip(a, destinationIds, overrides = {}) {
+  return {
+    ...newRecord('dayTrip', { title: 'Sunset Dhow Cruise' }), slug: 'sunset-dhow-cruise', overview: 'An evening on the water.',
+    destinationIds, inclusions: ['Boat hire'], cover: cover(a, 'Dhow sails at sunset'), ...overrides
   };
 }
 

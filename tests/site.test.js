@@ -331,7 +331,7 @@ test('storage: upgrading a populated version-1 database keeps records and media 
   let ws;
   try {
     ws = await openWorkspace({ dbName, schema, siteSchema });
-    assertEqual([ws.db.version, DB_VERSION], [2, 2]);
+    assertEqual([ws.db.version, DB_VERSION], [3, 3]);
     assert(['siteRecords', 'sitePublished', 'records', 'published', 'redirects', 'assets', 'assetBlobs', 'taxonomies', 'meta'].every(n => ws.db.objectStoreNames.contains(n)), 'stores missing after upgrade');
     assertEqual((await ws.content.get(dest.id)).record.overview, 'Vast plains.');
     assertEqual((await ws.content.getPublished(dest.id)).route, '/destinations/serengeti-national-park');
@@ -381,7 +381,7 @@ test('backup: v2 data + media round-trip restores settings, profiles, lineup, sn
   const dest = await source.content.publish((await source.content.saveDraft(completeDestination(img))).id, { expectedVersion: 1 });
   const data = JSON.parse(JSON.stringify(await source.backup.exportData()));
   const media = JSON.parse(JSON.stringify(await source.backup.exportMedia()));
-  assertEqual([data.schemasVersion, data.siteRecords.length, data.sitePublished.length, media.schemasVersion], [2, 4, 4, 1]);
+  assertEqual([data.schemasVersion, data.siteRecords.length, data.sitePublished.length, media.schemasVersion], [3, 4, 4, 1]);
   assert(/site settings, team profiles/.test(data.notice) && /does NOT contain image files/.test(data.notice));
   const before = await source.loadContext();
   await withWorkspace(async target => {
@@ -413,8 +413,7 @@ test('backup: a schemasVersion 1 backup replaces content but keeps current setti
     await source.content.saveDraft({ ...completeDestination(img), title: 'Tarangire', slug: 'tarangire' });
     legacy = JSON.parse(JSON.stringify(await source.backup.exportData()));
   });
-  delete legacy.siteRecords;
-  delete legacy.sitePublished;
+  for (const key of ['siteRecords', 'sitePublished', 'taxonomyPublication', 'dayTripDefaults']) delete legacy[key];
   legacy.schemasVersion = 1;
   const check = target.backup.validateDataBackup(legacy);
   assert(check.ok && check.legacy, JSON.stringify(check.errors));

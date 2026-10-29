@@ -1,10 +1,15 @@
 // Minimal IndexedDB adapter. A write is reported as successful only after its transaction's
 // `complete` event (requested with strict durability); errors and aborts always reject.
 // Version 2 (additive) adds siteRecords/sitePublished for site settings, team profiles and the team lineup.
-export const DB_VERSION = 2;
+// Version 3 (additive) adds taxonomyPublished (the published taxonomy snapshot) and defaults (day-trip
+// defaults), and gives existing taxonomy terms a key, display order and active flag (see upgradeLegacyTerms).
+// Day trips are a new record kind in the existing records/published stores, so they need no new store.
+import { newTaxonomyPublication, upgradeLegacyTerms } from '../modules/shared/taxonomy.js';
+
+export const DB_VERSION = 3;
 export const STORES = Object.freeze({
   records: 'records', published: 'published', redirects: 'redirects', assets: 'assets', assetBlobs: 'assetBlobs', taxonomies: 'taxonomies', meta: 'meta',
-  siteRecords: 'siteRecords', sitePublished: 'sitePublished'
+  siteRecords: 'siteRecords', sitePublished: 'sitePublished', taxonomyPublished: 'taxonomyPublished', defaults: 'defaults'
 });
 export const ALL_STORES = Object.freeze(Object.values(STORES));
 
@@ -52,7 +57,7 @@ export function openDatabase(name, { onBlocked, onVersionChange } = {}) {
       reject(new StorageError('unavailable', 'Local storage is blocked in this browser (private mode or site-data settings). Records cannot be saved.', err));
       return;
     }
-    req.onupgradeneeded = event => upgrade(req.result, event.oldVersion);
+    req.onupgradeneeded = event => upgrade(req.result, event.oldVersion, req.transaction);
     req.onblocked = () => onBlocked?.();
     req.onerror = () => reject(new StorageError('open-failed', `The local database could not be opened (${req.error?.name || 'unknown error'}). Check that site data is allowed for this page.`, req.error));
     req.onsuccess = () => {
@@ -63,7 +68,9 @@ export function openDatabase(name, { onBlocked, onVersionChange } = {}) {
   });
 }
 
-function upgrade(db, oldVersion) {
+// Runs inside the versionchange transaction: if any step fails, the whole upgrade is rolled back and the
+// database stays at its previous version with its data unchanged.
+function upgrade(db, oldVersion, tx) {
   if (oldVersion < 1) {
     db.createObjectStore(STORES.records, { keyPath: 'id' }).createIndex('kind', 'kind');
     db.createObjectStore(STORES.published, { keyPath: 'id' }).createIndex('kind', 'kind');
@@ -77,6 +84,21 @@ function upgrade(db, oldVersion) {
   if (oldVersion < 2) {
     db.createObjectStore(STORES.siteRecords, { keyPath: 'id' }).createIndex('kind', 'kind');
     db.createObjectStore(STORES.sitePublished, { keyPath: 'id' }).createIndex('kind', 'kind');
+  }
+  if (oldVersion < 3) {
+    db.createObjectStore(STORES.taxonomyPublished, { keyPath: 'id' });
+    db.createObjectStore(STORES.defaults, { keyPath: 'id' });
+    // Terms keep their id, namespace, label, timestamps and version; key/order/active are added. Before
+    // version 3 the local preview site showed the working term labels directly, so those terms become the
+    // first published taxonomy snapshot (origin "upgrade") and the local site looks the same as before.
+    const terms = tx.objectStore(STORES.taxonomies);
+    terms.getAll().onsuccess = event => {
+      const stored = event.target.result;
+      if (!stored.length) return;
+      const upgraded = upgradeLegacyTerms(stored);
+      for (const term of upgraded) terms.put(term);
+      tx.objectStore(STORES.taxonomyPublished).put(newTaxonomyPublication(upgraded, { now: new Date().toISOString(), origin: 'upgrade' }));
+    };
   }
 }
 

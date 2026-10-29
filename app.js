@@ -8,7 +8,7 @@ import { CONTENT_ROUTES, createView, parseRoute } from './src/modules/registry.j
 window.__vionBooted = true;
 
 // ---- Dashboard shell (sample fixtures; unchanged layout) ----
-const modules=[['Dashboard','dashboard',[]],['Tour Packages','map',['Tours List','Add Tour','Activities / day trips','Add Activity']],['Destinations','pin',['Destinations List','Add Destination']],['Accommodations','home',['Accommodations List','Add Accommodation']],['Bookings','calendar',['All Bookings']],['Safari Proposals','file',['Top Itineraries','Quotations List','Add Quotation / Itinerary']],['Blogs','edit',['Blog Posts','Add Post']],['Users','users',['Users List']],['Messages','message',['Messages List']],['Media Library','image',['Gallery']],['Email Subscribers','mail',['Mailing List']],['Vehicles','car',['Vehicles List','Add Vehicle']],['Migration','leaf',['Migration Posts','Add Post']],['Giving Back','heart',['Charity','Profiles']],['Settings','settings',['Setting Options','Team']]];
+const modules=[['Dashboard','dashboard',[]],['Tour Packages','map',['Tours List','Add Tour','Activities / day trips','Add Activity','Taxonomies']],['Destinations','pin',['Destinations List','Add Destination']],['Accommodations','home',['Accommodations List','Add Accommodation']],['Bookings','calendar',['All Bookings']],['Safari Proposals','file',['Top Itineraries','Quotations List','Add Quotation / Itinerary']],['Blogs','edit',['Blog Posts','Add Post']],['Users','users',['Users List']],['Messages','message',['Messages List']],['Media Library','image',['Gallery']],['Email Subscribers','mail',['Mailing List']],['Vehicles','car',['Vehicles List','Add Vehicle']],['Migration','leaf',['Migration Posts','Add Post']],['Giving Back','heart',['Charity','Profiles']],['Settings','settings',['Setting Options','Team']]];
 const moduleIndexFor = label => modules.findIndex(m => m[2].includes(label));
 // Working modules get real routes; every other label opens an honest placeholder.
 const hashFor = (label, index = moduleIndexFor(label)) => CONTENT_ROUTES[label] || `#/section/${index}/${slugify(label)}`;
@@ -28,8 +28,6 @@ const el = id => document.getElementById(id);
 const dashboardEl = el('dashboard'), placeholderEl = el('modulePreview'), moduleRoot = el('moduleRoot'), pageHeading = document.querySelector('.page-heading'), previewNote = el('previewNote');
 const DASHBOARD_NOTE = previewNote.innerHTML;
 const PLACEHOLDER_NOTES = {
-  'Activities / day trips': 'The day-trip / activity editor is out of scope for this stage (docs/IMPLEMENTATION_SPEC.md, “Out of scope”).',
-  'Add Activity': 'The day-trip / activity editor is out of scope for this stage (docs/IMPLEMENTATION_SPEC.md, “Out of scope”).',
   'Gallery': 'The existing Gallery’s behaviour and media ownership (E1) are unconfirmed, so it is not replaced. The local image library used by Destinations, Accommodations and Tours is available separately.'
 };
 
@@ -81,7 +79,7 @@ function errorView(err) {
   return {
     el: h('div', { class: 'panel empty-panel' }, iconEl('alert'), h('h1', { tabindex: '-1' }, 'The local workspace could not be opened'),
       notice('error', err?.message || String(err)),
-      h('p', null, 'Nothing was saved or changed. Serve the CMS at http://127.0.0.1:5173 (see README.md), allow site data for this page, then try again.'),
+      h('p', null, 'Nothing was saved or changed. Serve the CMS at http://127.0.0.1:5173 (see README.md), allow site data for this page, then try again. If the CMS was just updated, press Ctrl+F5 (Cmd+Shift+R on a Mac) so the browser loads every new file.'),
       h('button', { type: 'button', class: 'btn btn-primary', on: { click: () => { workspacePromise = null; render(location.hash); } } }, 'Try again')),
     title: 'Storage unavailable', breadcrumb: 'Storage unavailable'
   };

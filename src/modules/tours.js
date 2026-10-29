@@ -1,12 +1,15 @@
-// Tours module. Most tour fields are inferred (B1); taxonomies are prototype terms (B4); pricing is limited
-// to price-on-request or an explicit manual "from" price until the price model (B2/B3) is confirmed.
-import { button, h, linkButton } from '../components/dom.js';
+// Tours module. Most tour fields are inferred (B1); taxonomies are managed terms awaiting definitions (B4);
+// pricing is limited to price-on-request or an explicit manual "from" price until the price model (B2/B3) is
+// confirmed.
+import { button, h } from '../components/dom.js';
 import { confirmDialog } from '../components/dialog.js';
 import { notice } from '../components/feedback.js';
-import { fieldIdFor, radioGroup } from '../components/fields.js';
+import { fieldIdFor } from '../components/fields.js';
 import { createRepeater } from '../components/repeater.js';
-import { MEAL_OPTIONS, TAXONOMY_NAMESPACES, compareOptionalNumber, formToRecord, newItineraryDay } from './shared/records.js';
-import { BASIS_LABELS, COMMON_CURRENCIES, PROVISIONAL_PRICING_WARNING, describePrice, supportedCurrencies } from './shared/pricing.js';
+import { MEAL_OPTIONS, compareOptionalNumber, newItineraryDay } from './shared/records.js';
+import { describePrice } from './shared/pricing.js';
+import { manageTaxonomiesLink, tagsField, termSelect } from './term-fields.js';
+import { pricingSection } from './pricing-section.js';
 
 function basics(ed) {
   return [
@@ -21,40 +24,14 @@ function basics(ed) {
   ];
 }
 
-function termSelect(ed, key, namespace) {
-  const terms = [...ed.ctx.taxonomies.values()].filter(t => t.namespace === namespace).sort((a, b) => a.label.localeCompare(b.label));
-  const options = [{ value: '', label: `— No ${TAXONOMY_NAMESPACES[namespace].toLowerCase()} —` }, ...terms.map(t => ({ value: t.id, label: t.label }))];
-  if (ed.model[key] && !ed.ctx.taxonomies.has(ed.model[key])) options.push({ value: ed.model[key], label: 'Missing term (clear this value)' });
-  return ed.select(key, { label: TAXONOMY_NAMESPACES[namespace], options, emptyValue: null });
-}
-
-function tagsField(ed) {
-  const id = fieldIdFor('tagIds');
-  const tags = [...ed.ctx.taxonomies.values()].filter(t => t.namespace === 'tag').sort((a, b) => a.label.localeCompare(b.label));
-  const selected = ed.model.tagIds;
-  const missing = selected.filter(tid => !ed.ctx.taxonomies.has(tid));
-  return h('fieldset', { class: 'field field-wide', id },
-    h('legend', { class: 'field-label' }, 'Tags'),
-    tags.length ? h('div', { class: 'check-grid' }, tags.map(tag => h('label', { class: 'check' },
-      h('input', { type: 'checkbox', checked: selected.includes(tag.id), disabled: ed.readOnly, on: { change: e => {
-        const i = selected.indexOf(tag.id);
-        if (e.target.checked && i === -1) selected.push(tag.id);
-        if (!e.target.checked && i !== -1) selected.splice(i, 1);
-        ed.changed();
-      } } }), h('span', null, tag.label)))) : h('p', { class: 'muted' }, 'No tag terms yet.'),
-    missing.length ? h('p', { class: 'msg-error' }, `${missing.length} selected tag${missing.length === 1 ? ' no longer exists' : 's no longer exist'}. `,
-      button('Remove missing tags', { variant: 'ghost', onClick: () => { ed.model.tagIds = selected.filter(t => ed.ctx.taxonomies.has(t)); ed.changed(); ed.refreshSection('classification'); } })) : null,
-    h('p', { class: 'field-error', id: `${id}-error`, hidden: true }));
-}
-
 function classification(ed) {
   return [
     ed.group('Destinations',
       ed.relations('destinationIds', { legend: 'Tour destinations', kind: 'destination', noun: 'destination', hint: 'At least one published destination is required to publish. Draft and archived destinations can be linked while drafting but block publishing.' })),
     h('div', { class: 'form-group' },
       h('h3', { class: 'group-title' }, 'Classification (optional)'),
-      notice('info', 'Tour types, categories, standards and tags are prototype terms with stable IDs. No existing CMS values are assumed (B4 unresolved).', ' ', linkButton('Manage tour taxonomies', '#/taxonomies', { variant: 'ghost' })),
-      h('div', { class: 'form-grid' }, termSelect(ed, 'typeId', 'type'), termSelect(ed, 'categoryId', 'category'), termSelect(ed, 'standardId', 'standard'), tagsField(ed)))
+      notice('info', 'Tour types, categories, standards and tags are managed terms with stable IDs. Their definitions await owner confirmation (B4); no existing CMS values are assumed. Only active terms can be newly chosen; publishing needs them in the published taxonomy.', ' ', manageTaxonomiesLink()),
+      h('div', { class: 'form-grid' }, termSelect(ed, 'typeId', 'type'), termSelect(ed, 'categoryId', 'category'), termSelect(ed, 'standardId', 'standard'), tagsField(ed, { sectionId: 'classification' })))
   ];
 }
 
@@ -131,34 +108,6 @@ function itinerary(ed) {
   ];
 }
 
-function pricing(ed) {
-  const p = ed.model.pricing;
-  const display = h('p', { class: 'price-display', 'aria-live': 'polite' });
-  const update = () => { display.textContent = `Shown publicly as: ${describePrice(formToRecord(ed.model).record.pricing).text}`; };
-  const mode = radioGroup({
-    id: fieldIdFor('pricing.mode'), legend: 'Pricing mode', value: p.mode,
-    hint: 'Default is price on request. The full residency/season/group price matrix is not modelled yet (B2/B3); no totals or quotes are calculated.',
-    options: [{ value: 'request', label: 'Price on request (default)' }, { value: 'manualFrom', label: 'Manual “from” price — provisional' }],
-    onChange: value => {
-      p.mode = value;
-      ed.changed();
-      ed.refreshSection('pricing');
-      document.querySelector(`#${fieldIdFor('pricing.mode')} input[value="${value}"]`)?.focus();
-    }
-  });
-  const fields = p.mode === 'manualFrom' ? [
-    notice('warning', PROVISIONAL_PRICING_WARNING),
-    h('div', { class: 'form-grid' },
-      ed.text('pricing.currency', { label: 'Currency', required: 'publish', list: 'currency-codes', placeholder: 'USD', hint: 'Three-letter ISO 4217 code supported by this browser (for example USD, EUR, TZS).', onInput: update }),
-      ed.text('pricing.amount', { label: '“From” amount', required: 'publish', inputmode: 'decimal', placeholder: '1250.00', hint: 'Digits with an optional decimal point. Stored exactly as entered (decimal text, not a rounded number). 0 is allowed and shown as 0.', onInput: update }),
-      ed.select('pricing.basis', { label: 'Price basis', required: 'publish', emptyValue: undefined, options: [{ value: '', label: '— Choose basis —' }, ...Object.entries(BASIS_LABELS).map(([value, label]) => ({ value, label: label[0].toUpperCase() + label.slice(1) }))], onChange: update }),
-      ed.text('pricing.applicability', { label: 'What the price applies to (public)', required: 'publish', multiline: true, rows: 3, placeholder: 'e.g. Per person sharing, based on 4 travellers in low season.', onInput: update })),
-    h('datalist', { id: 'currency-codes' }, [...new Set([...COMMON_CURRENCIES, ...supportedCurrencies()])].map(code => h('option', { value: code })))
-  ] : [];
-  update();
-  return [mode, ...fields, display];
-}
-
 export const tourModule = {
   kind: 'tour', path: 'tours', label: 'Tour', plural: 'Tours', icon: 'map',
   navGroup: 'Tour Packages', listLabel: 'Tours List', addLabel: 'Add Tour',
@@ -168,7 +117,7 @@ export const tourModule = {
     { id: 'classification', label: 'Destinations & classification', render: classification },
     { id: 'content', label: 'Overview & inclusions', render: content },
     { id: 'itinerary', label: 'Itinerary', render: itinerary },
-    { id: 'pricing', label: 'Pricing', render: pricing },
+    { id: 'pricing', label: 'Pricing', render: pricingSection },
     'media', 'seo', 'preview'
   ],
   columns: [

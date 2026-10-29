@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Vion CMS working record draft schema v1",
-  "description": "Proposed draft shapes only; semantic publish, relationship, route and media checks are defined in docs/IMPLEMENTATION_SPEC.md. Published snapshots and asset stores are separate envelopes.",
+  "description": "Proposed draft shapes only; semantic publish, relationship, route and media checks are defined in docs/IMPLEMENTATION_SPEC.md and docs/TAXONOMIES_AND_DAY_TRIPS.md. Published snapshots and asset stores are separate envelopes. Helper definitions (taxonomyTerm, taxonomyPublication, dayTripDefaults) are not record kinds.",
   "oneOf": [
     {
       "$ref": "#/$defs/destination"
@@ -11,6 +11,9 @@
     },
     {
       "$ref": "#/$defs/tour"
+    },
+    {
+      "$ref": "#/$defs/dayTrip"
     }
   ],
   "$defs": {
@@ -649,6 +652,445 @@
             }
           },
           "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "dayTrip": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "version",
+        "schemaVersion"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "dayTrip"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^$|^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "seo": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "shareAssetId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "noindex": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "assetId",
+                "alt"
+              ],
+              "properties": {
+                "assetId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "alt": {
+                  "type": "string"
+                },
+                "decorative": {
+                  "type": "boolean"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gallery": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "assetId",
+              "alt"
+            ],
+            "properties": {
+              "assetId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "alt": {
+                "type": "string"
+              },
+              "decorative": {
+                "type": "boolean"
+              },
+              "caption": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "overview": {
+          "type": "string"
+        },
+        "destinationIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tagIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "duration": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "value",
+                "unit"
+              ],
+              "properties": {
+                "value": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "unit": {
+                  "enum": [
+                    "hours",
+                    "days"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schedule": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "heading",
+              "description"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "heading": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "inclusions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "whatToBring": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "featured": {
+          "type": "boolean"
+        },
+        "displayOrder": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pricing": {
+          "type": "object",
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "request",
+                "manualFrom"
+              ]
+            },
+            "amount": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "basis": {
+              "enum": [
+                "perPerson",
+                "perGroup",
+                "perVehicle"
+              ]
+            },
+            "applicability": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "taxonomyTerm": {
+      "type": "object",
+      "required": [
+        "id",
+        "namespace",
+        "label",
+        "key",
+        "order",
+        "active",
+        "createdAt",
+        "updatedAt",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "namespace": {
+          "enum": [
+            "type",
+            "category",
+            "standard",
+            "tag"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "taxonomyPublication": {
+      "type": "object",
+      "required": [
+        "id",
+        "revision",
+        "publishedAt",
+        "origin",
+        "terms"
+      ],
+      "properties": {
+        "id": {
+          "const": "tour-taxonomy"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "publishedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "origin": {
+          "enum": [
+            "publish",
+            "upgrade",
+            "import"
+          ]
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "namespace",
+              "label",
+              "key",
+              "order",
+              "active"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "namespace": {
+                "enum": [
+                  "type",
+                  "category",
+                  "standard",
+                  "tag"
+                ]
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "order": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "active": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "dayTripDefaults": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "inclusions",
+        "whatToBring",
+        "createdAt",
+        "updatedAt",
+        "version",
+        "schemaVersion"
+      ],
+      "properties": {
+        "id": {
+          "const": "day-trip-defaults"
+        },
+        "kind": {
+          "const": "dayTripDefaults"
+        },
+        "inclusions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "whatToBring": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schemaVersion": {
+          "const": 1
         }
       },
       "additionalProperties": false

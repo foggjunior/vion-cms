@@ -5,7 +5,7 @@ attributes pass through an allowlist.
 
 - `dom.js`, `icons.js` — element builder, icons, live-region announcements, buttons.
 - `fields.js` — labelled inputs with hint and error slots (`aria-describedby`, `aria-invalid`).
-- `tabs.js` — WAI-ARIA tabs (arrow keys, Home/End).
+- `tabs.js` — WAI-ARIA tabs (arrow keys, Home/End); the tab list label is configurable.
 - `repeater.js` — ordered repeaters with Move up/down/Remove buttons, focus retention and announcements;
   string lists built on it.
 - `relation-picker.js` — filterable many-to-many picker that keeps draft/archived/missing references visible.

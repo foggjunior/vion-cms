@@ -24,7 +24,7 @@ const BASE_SORTS = {
 };
 
 export function toolNav(active) {
-  const links = [['site', '#/site', 'Local preview site', 'globe'], ['media', '#/media', 'Media library', 'image'], ['taxonomies', '#/taxonomies', 'Tour taxonomies', 'tag'], ['redirects', '#/redirects', 'Planned redirects', 'redirect'], ['backup', '#/backup', 'Backup & import', 'database']];
+  const links = [['site', '#/site', 'Local preview site', 'globe'], ['media', '#/media', 'Media library', 'image'], ['taxonomies', '#/taxonomies', 'Taxonomies', 'tag'], ['redirects', '#/redirects', 'Planned redirects', 'redirect'], ['backup', '#/backup', 'Backup & import', 'database']];
   return h('nav', { class: 'tool-nav', 'aria-label': 'Local content tools' },
     links.map(([key, href, label, iconName]) => h('a', { href, class: ['tool-link', key === active && 'is-active'], 'aria-current': key === active ? 'page' : null }, icon(iconName), label)));
 }
@@ -153,6 +153,7 @@ export async function createListView({ def, app, params }) {
       h('div', null, h('div', { class: 'eyebrow' }, 'LOCAL CONTENT PROTOTYPE'), h('h1', { tabindex: '-1' }, def.plural), h('p', { class: 'view-intro' }, def.intro)),
       linkButton(def.addLabel, `#/${def.path}/new`, { variant: 'primary', iconName: 'plus' })),
     toolNav(null),
+    def.listExtras?.() || null,
     h('div', { class: 'list-toolbar panel', role: 'search' },
       h('div', { class: 'field' }, h('label', { for: searchInput.id, class: 'field-label' }, 'Search'), searchInput),
       h('div', { class: 'field' }, h('label', { for: statusSelect.id, class: 'field-label' }, 'Status'), statusSelect),

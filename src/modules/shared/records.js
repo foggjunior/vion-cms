@@ -1,10 +1,14 @@
 // Record factories, form conversion and reference helpers shared by the UI and the repositories.
 import { newId } from './format.js';
 import { SITE_KIND_LABELS, editorHref, siteAssetRefs, siteRecordTitle } from './site.js';
+import { TAXONOMY_PUBLICATION_ID } from './taxonomy.js';
+import { parseDuration } from './day-trips.js';
 
-export const KINDS = Object.freeze(['destination', 'accommodation', 'tour']);
-export const KIND_LABELS = Object.freeze({ destination: 'Destination', accommodation: 'Accommodation', tour: 'Tour' });
-export const TAXONOMY_NAMESPACES = Object.freeze({ type: 'Tour type', category: 'Tour category', standard: 'Tour standard', tag: 'Tour tag' });
+export { TAXONOMY_NAMESPACES } from './taxonomy.js';
+export const KINDS = Object.freeze(['destination', 'accommodation', 'tour', 'dayTrip']);
+// Kinds that existed before day trips; backups older than schemasVersion 3 may only contain these.
+export const LEGACY_KINDS = Object.freeze(['destination', 'accommodation', 'tour']);
+export const KIND_LABELS = Object.freeze({ destination: 'Destination', accommodation: 'Accommodation', tour: 'Tour', dayTrip: 'Day trip' });
 export const ACCOMMODATION_SETTINGS = Object.freeze({ unspecified: 'Not specified', insidePark: 'Inside park', outsidePark: 'Outside park' });
 // Audit examples only, offered as suggestions; values remain free text (not confirmed business rules).
 export const ACCOMMODATION_TYPE_EXAMPLES = Object.freeze(['Hotel', 'Lodge', 'Campsite']);
@@ -12,7 +16,7 @@ export const ACCOMMODATION_STANDARD_EXAMPLES = Object.freeze(['Luxury', 'Semi Lu
 export const MEAL_OPTIONS = Object.freeze(['Breakfast', 'Lunch', 'Dinner']);
 
 // Numeric fields edited as raw text so malformed input can be reported instead of silently dropped.
-const NUMERIC_FIELDS = { tour: ['durationDays', 'recommendedRank'], destination: ['order'], accommodation: [] };
+const NUMERIC_FIELDS = { tour: ['durationDays', 'recommendedRank'], destination: ['order'], accommodation: [], dayTrip: ['displayOrder'] };
 
 const emptySeo = () => ({ title: '', description: '', shareAssetId: null, noindex: false });
 
@@ -26,6 +30,11 @@ export function newRecord(kind, { id = newId(), now = new Date().toISOString(), 
   if (kind === 'tour') return {
     ...base, summary: '', overview: '', durationDays: null, destinationIds: [], typeId: null, categoryId: null, standardId: null,
     tagIds: [], itinerary: [], inclusions: [], exclusions: [], featured: false, pricing: { mode: 'request' }
+  };
+  // Day trips deliberately have no accommodation, tour type, category or standard fields.
+  if (kind === 'dayTrip') return {
+    ...base, summary: '', overview: '', destinationIds: [], tagIds: [], duration: null, schedule: [],
+    inclusions: [], exclusions: [], whatToBring: [], featured: false, pricing: { mode: 'request' }
   };
   throw new Error(`Unknown kind ${kind}`);
 }
@@ -44,6 +53,9 @@ export function publicName(record) {
   return (record.kind === 'destination' && record.displayName?.trim()) || record.title || 'Untitled';
 }
 
+// Text used for generated SEO descriptions and card teasers when nothing more specific is entered.
+export const descriptionSource = record => (record.kind === 'tour' || record.kind === 'dayTrip' ? record.summary || record.overview : record.kind === 'destination' ? record.overview : record.description);
+
 // Form model = record with numeric fields as strings and optional fields materialised for binding.
 export function recordToForm(record) {
   const form = structuredClone(record);
@@ -53,6 +65,12 @@ export function recordToForm(record) {
   if (record.kind === 'tour') {
     form.pricing = { mode: 'request', ...(form.pricing || {}) };
     form.itinerary = (form.itinerary || []).map(day => ({ destinationIds: [], accommodationIds: [], meals: [], activities: [], ...day }));
+  }
+  if (record.kind === 'dayTrip') {
+    form.pricing = { mode: 'request', ...(form.pricing || {}) };
+    // The form always holds a duration object; a blank value is stored as "no duration".
+    form.duration = { value: record.duration ? String(record.duration.value) : '', unit: record.duration?.unit || 'hours' };
+    for (const key of ['schedule', 'inclusions', 'exclusions', 'whatToBring', 'destinationIds', 'tagIds']) form[key] = form[key] || [];
   }
   return form;
 }
@@ -113,6 +131,18 @@ export function formToRecord(form) {
     }));
     record.pricing = cleanPricing(form.pricing);
   }
+  if (record.kind === 'dayTrip') {
+    integerField('displayOrder', { min: 0, label: 'Display order', optional: true });
+    record.destinationIds = uniqueIds(record.destinationIds);
+    record.tagIds = uniqueIds(record.tagIds);
+    record.featured = !!record.featured;
+    for (const key of ['inclusions', 'exclusions', 'whatToBring']) record[key] = cleanList(record[key]);
+    record.schedule = (record.schedule || []).map(item => ({ id: item.id, heading: String(item.heading || '').trim(), description: String(item.description || '').trim() }));
+    const parsed = parseDuration(form.duration);
+    issues.push(...parsed.issues);
+    if (parsed.duration === undefined) delete record.duration; else record.duration = parsed.duration;
+    record.pricing = cleanPricing(form.pricing);
+  }
   return { record, issues };
 }
 
@@ -141,6 +171,7 @@ function cleanPricing(pricing) {
 export function relationRefs(record) {
   const refs = [];
   if (record.kind === 'accommodation' && record.destinationId) refs.push({ path: 'destinationId', id: record.destinationId, kind: 'destination' });
+  if (record.kind === 'dayTrip') for (const id of record.destinationIds || []) refs.push({ path: 'destinationIds', id, kind: 'destination' });
   if (record.kind === 'tour') {
     for (const id of record.destinationIds || []) refs.push({ path: 'destinationIds', id, kind: 'destination' });
     (record.itinerary || []).forEach((day, i) => {
@@ -159,7 +190,9 @@ export function assetRefs(record) {
   return refs;
 }
 
+// Term references: [{ path, id, namespace }]. Day trips reference tags only.
 export function taxonomyRefs(record) {
+  if (record.kind === 'dayTrip') return (record.tagIds || []).map(id => ({ path: 'tagIds', id, namespace: 'tag' }));
   if (record.kind !== 'tour') return [];
   const refs = [];
   for (const [key, namespace] of [['typeId', 'type'], ['categoryId', 'category'], ['standardId', 'standard']]) {
@@ -181,15 +214,19 @@ export const hasUnpublishedChanges = env => env.record.status === 'published' &&
 
 // Builds the lookup context used by validation, from plain arrays read out of storage. Site settings, team
 // profiles and the team lineup (siteRecords/sitePublished) are kept apart from content records so slug,
-// route, redirect and content-dependency rules never see them.
-export function makeContext({ records = [], published = [], redirects = [], assets = [], blobKeys = [], taxonomies = [], siteRecords = [], sitePublished = [], validator = null, siteValidator = null }) {
+// route, redirect and content-dependency rules never see them. `taxonomies` are the working terms;
+// `publishedTerms` come from the published taxonomy snapshot that the local preview site uses.
+export function makeContext({ records = [], published = [], redirects = [], assets = [], blobKeys = [], taxonomies = [], taxonomyPublication = null, siteRecords = [], sitePublished = [], validator = null, siteValidator = null }) {
   const blobs = new Set(blobKeys);
+  const publication = taxonomyPublication?.id === TAXONOMY_PUBLICATION_ID ? taxonomyPublication : null;
   return {
     records: new Map(records.map(env => [env.id, env])),
     published: new Map(published.map(p => [p.id, p])),
     redirects,
     assets: new Map(assets.map(a => [a.id, { ...a, hasBlob: blobs.has(a.id) }])),
     taxonomies: new Map(taxonomies.map(t => [t.id, t])),
+    taxonomyPublication: publication,
+    publishedTerms: new Map((publication?.terms || []).map(t => [t.id, t])),
     siteRecords: new Map(siteRecords.map(env => [env.id, env])),
     sitePublished: new Map(sitePublished.map(p => [p.id, p])),
     validator,
@@ -229,10 +266,11 @@ export function assetUsage(assetId, ctx) {
   return usage;
 }
 
+// Working drafts and published snapshots (tours and day trips) that reference a term.
 export function taxonomyUsage(termId, ctx) {
   const usage = [];
-  for (const env of ctx.records.values()) if (taxonomyRefs(env.record).some(r => r.id === termId)) usage.push({ recordId: env.id, title: env.record.title, where: 'working draft' });
-  for (const pub of ctx.published.values()) if (taxonomyRefs(pub.snapshot).some(r => r.id === termId)) usage.push({ recordId: pub.id, title: pub.snapshot.title, where: 'published snapshot' });
+  for (const env of ctx.records.values()) if (taxonomyRefs(env.record).some(r => r.id === termId)) usage.push({ recordId: env.id, kind: env.kind, title: env.record.title, status: env.record.status, where: 'working draft', href: editorHref(env.kind, env.id) });
+  for (const pub of ctx.published.values()) if (taxonomyRefs(pub.snapshot).some(r => r.id === termId)) usage.push({ recordId: pub.id, kind: pub.kind, title: pub.snapshot.title, where: 'published snapshot', href: editorHref(pub.kind, pub.id) });
   return usage;
 }
 
@@ -241,6 +279,7 @@ export function duplicateRecord(record, { id = newId(), now, slug, title }) {
   const copy = structuredClone(record);
   Object.assign(copy, { id, title, slug, status: 'draft', createdAt: now, updatedAt: now, version: 1, schemaVersion: 1 });
   if (copy.kind === 'tour') copy.itinerary = copy.itinerary.map(day => ({ ...day, id: newId() }));
+  if (copy.kind === 'dayTrip') copy.schedule = (copy.schedule || []).map(item => ({ ...item, id: newId() }));
   if (copy.kind === 'destination') copy.travelTips = (copy.travelTips || []).map(tip => ({ ...tip, id: newId() }));
   return copy;
 }

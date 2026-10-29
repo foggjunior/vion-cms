@@ -2,22 +2,26 @@
 import { destinationModule } from './destinations.js';
 import { accommodationModule } from './accommodations.js';
 import { tourModule } from './tours.js';
+import { dayTripModule } from './day-trips.js';
 import { createListView } from './list-view.js';
 import { createEditorView } from './editor-view.js';
 import { createPreviewView } from './preview-view.js';
 import { createSiteView } from './site-view.js';
 import { createMediaLibraryView } from './media-library-view.js';
-import { createBackupView, createRedirectsView, createTaxonomyView } from './tools.js';
+import { createBackupView, createRedirectsView } from './tools.js';
+import { createTaxonomyView } from './taxonomy-view.js';
+import { createDayTripDefaultsView } from './day-trip-defaults-view.js';
 import { settingsModule } from './settings.js';
 import { teamModule } from './team.js';
 import { createTeamListView } from './team-list-view.js';
 import { createMemberPreviewView, createSettingsPreviewView, createTeamPagePreviewView } from './site-preview-view.js';
 
-export const CONTENT_MODULES = Object.freeze({ tours: tourModule, destinations: destinationModule, accommodations: accommodationModule });
+export const CONTENT_MODULES = Object.freeze({ tours: tourModule, destinations: destinationModule, accommodations: accommodationModule, 'day-trips': dayTripModule });
 
 // Sidebar/quick-action labels that open working modules. Every other label stays a placeholder.
 export const CONTENT_ROUTES = Object.freeze({
   'Tours List': '#/tours', 'Add Tour': '#/tours/new',
+  'Activities / day trips': '#/day-trips', 'Add Activity': '#/day-trips/new', 'Taxonomies': '#/taxonomies',
   'Destinations List': '#/destinations', 'Add Destination': '#/destinations/new',
   'Accommodations List': '#/accommodations', 'Add Accommodation': '#/accommodations/new',
   'Setting Options': '#/settings', 'Team': '#/team'
@@ -25,17 +29,23 @@ export const CONTENT_ROUTES = Object.freeze({
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 
+// The query is split off before decoding, so encoded "&", "=" or "?" inside a value (a search term or a
+// filter value) stay part of that value.
 export function parseRoute(hash) {
-  const raw = decodeURIComponent(String(hash || '').replace(/^#/, '')) || '/dashboard';
-  const [pathPart, query = ''] = raw.split('?');
+  const text = String(hash || '').replace(/^#/, '') || '/dashboard';
+  const cut = text.indexOf('?');
+  let pathPart = cut === -1 ? text : text.slice(0, cut);
+  try { pathPart = decodeURIComponent(pathPart); } catch { return { type: 'unknown', path: pathPart }; }
   const path = pathPart.startsWith('/') ? pathPart : `/${pathPart}`;
-  const params = new URLSearchParams(query);
+  const params = new URLSearchParams(cut === -1 ? '' : text.slice(cut + 1));
+  const modules = 'tours|destinations|accommodations|day-trips';
   let m;
   if (path === '/' || path === '/dashboard') return { type: 'dashboard' };
-  if ((m = path.match(/^\/(tours|destinations|accommodations)\/?$/))) return { type: 'list', def: CONTENT_MODULES[m[1]], params };
-  if ((m = path.match(/^\/(tours|destinations|accommodations)\/new$/))) return { type: 'editor', def: CONTENT_MODULES[m[1]], id: null };
-  if ((m = path.match(new RegExp(`^/(tours|destinations|accommodations)/(${UUID})$`, 'i')))) return { type: 'editor', def: CONTENT_MODULES[m[1]], id: m[2].toLowerCase() };
-  if ((m = path.match(new RegExp(`^/(tours|destinations|accommodations)/(${UUID})/preview$`, 'i')))) return { type: 'preview', def: CONTENT_MODULES[m[1]], id: m[2].toLowerCase(), params };
+  if (path === '/day-trips/defaults') return { type: 'day-trip-defaults' };
+  if ((m = path.match(new RegExp(`^/(${modules})/?$`)))) return { type: 'list', def: CONTENT_MODULES[m[1]], params };
+  if ((m = path.match(new RegExp(`^/(${modules})/new$`)))) return { type: 'editor', def: CONTENT_MODULES[m[1]], id: null };
+  if ((m = path.match(new RegExp(`^/(${modules})/(${UUID})$`, 'i')))) return { type: 'editor', def: CONTENT_MODULES[m[1]], id: m[2].toLowerCase() };
+  if ((m = path.match(new RegExp(`^/(${modules})/(${UUID})/preview$`, 'i')))) return { type: 'preview', def: CONTENT_MODULES[m[1]], id: m[2].toLowerCase(), params };
   if (path === '/settings') return { type: 'editor', def: settingsModule, id: null };
   if (path === '/settings/preview') return { type: 'settings-preview', params };
   if (path === '/team' || path === '/team/') return { type: 'team-list', params };
@@ -44,10 +54,10 @@ export function parseRoute(hash) {
   if ((m = path.match(new RegExp(`^/team/(${UUID})$`, 'i')))) return { type: 'editor', def: teamModule, id: m[1].toLowerCase() };
   if ((m = path.match(new RegExp(`^/team/(${UUID})/preview$`, 'i')))) return { type: 'member-preview', id: m[1].toLowerCase(), params };
   if (path === '/media') return { type: 'media' };
-  if (path === '/taxonomies') return { type: 'taxonomies' };
+  if (path === '/taxonomies') return { type: 'taxonomies', params };
   if (path === '/redirects') return { type: 'redirects' };
   if (path === '/backup') return { type: 'backup' };
-  if ((m = path.match(/^\/site(\/.*)?$/))) return { type: 'site', path: m[1] || '/' };
+  if ((m = path.match(/^\/site(\/.*)?$/))) return { type: 'site', path: m[1] || '/', params };
   if ((m = path.match(/^\/section\/(\d+)\/([a-z0-9-]+)$/))) return { type: 'placeholder', moduleIndex: Number(m[1]), slug: m[2] };
   return { type: 'unknown', path };
 }
@@ -58,10 +68,11 @@ export function createView(route, app) {
     case 'editor': return createEditorView({ def: route.def, id: route.id, app });
     case 'preview': return createPreviewView({ def: route.def, id: route.id, app, params: route.params });
     case 'media': return createMediaLibraryView({ app });
-    case 'taxonomies': return createTaxonomyView({ app });
+    case 'taxonomies': return createTaxonomyView({ app, params: route.params });
+    case 'day-trip-defaults': return createDayTripDefaultsView({ app });
     case 'redirects': return createRedirectsView({ app });
     case 'backup': return createBackupView({ app });
-    case 'site': return createSiteView({ app, path: route.path });
+    case 'site': return createSiteView({ app, path: route.path, params: route.params });
     case 'settings-preview': return createSettingsPreviewView({ app, params: route.params });
     case 'team-list': return createTeamListView({ app, params: route.params });
     case 'team-preview': return createTeamPagePreviewView({ app, params: route.params });

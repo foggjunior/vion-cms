@@ -128,7 +128,7 @@ export async function createTeamListView({ app, params }) {
     append(clear(lineupEl), [
       h('div', { class: 'lineup-head' },
         h('div', null,
-          h('h2', { id: 'lineup-heading' }, 'Team page order and visibility'),
+          h('h2', { id: 'lineup-heading', tabindex: '-1' }, 'Team page order and visibility'),
           h('p', { class: 'muted' }, 'Move up / Move down and “Visible” change the draft order immediately. The local team page keeps the published order until you publish it. Publishing the order never publishes profile edits; profiles are published from their own editor.')),
         h('div', { class: 'btn-row' },
           button(env && !changes ? 'Order published' : 'Publish order & visibility', { variant: 'primary', iconName: 'globe', disabled: !env || !changes, onClick: publishOrder, 'data-action': 'publish-lineup', title: !env ? 'The team order is created with the first profile.' : changes ? 'Publish the draft order and visibility to the local preview only' : 'The published order matches the draft order.' }),
@@ -210,7 +210,11 @@ export async function createTeamListView({ app, params }) {
   render();
   return {
     el, title: 'Team', breadcrumb: 'Settings / Team', navGroup: 'Settings', navLabel: 'Team',
-    mounted() { el.querySelector('h1').focus({ preventScroll: true }); },
+    // ?focus=lineup (the "Review team visibility" action after publishing a profile) lands on the order panel.
+    mounted() {
+      if (params.get('focus') === 'lineup') { lineupEl.querySelector('#lineup-heading').focus({ preventScroll: true }); lineupEl.scrollIntoView({ block: 'start' }); }
+      else el.querySelector('h1').focus({ preventScroll: true });
+    },
     destroy() { offEvents(); }
   };
 }

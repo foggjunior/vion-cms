@@ -1,10 +1,133 @@
 # Implementation status
 
 Updated 29 October 2026. Functional local prototype of the **Destinations, Accommodations and Tours** modules
-(phase 1, 28 Oct) and **Site settings and Team** (phase 2, 29 Oct) is implemented and tested in the browser.
+(phase 1, 28 Oct), **Site settings and Team** (phase 2, 29 Oct) and **Tour taxonomies and Day trips** (phase 3,
+29 Oct) is implemented and tested in the browser.
 Everything below describes this local prototype only: data lives in one browser's IndexedDB, “publish” means
 visible in the local preview, and nothing is connected to Firebase, Cloudinary, the live website, authentication,
 email, bookings or payments.
+
+## Phase 3 — Tour taxonomies and Day trips (29 Oct 2026)
+
+Design, data model, publication policy, backup compatibility and open decisions: `docs/TAXONOMIES_AND_DAY_TRIPS.md`.
+All of it is proposed replacement behaviour, not confirmed current-CMS behaviour. Screenshots establish only the
+*Activities / day trips* and *Add Activity* menu entries; the audit observed day-trip pages, a tag filter and global
+inclusion / what-to-bring lists, but not their admin rules or approved text.
+
+### What works
+
+| Area | Implemented |
+| --- | --- |
+| Navigation | *Tour Packages* keeps Tours List, Add Tour, Activities / day trips and Add Activity, and gains **Taxonomies**. Activities / day trips → `#/day-trips` (heading “Day Trips”), Add Activity → `#/day-trips/new`, Taxonomies → `#/taxonomies`. The other 14 groups, placeholders, dashboard, account menu and mobile sidebar are unchanged. |
+| Taxonomies | The existing `taxonomies` store and repository were extended (no second term store). Four namespaces; each term has stable ID, namespace, label, key, display order, active flag, timestamps and version. Search and status filter, per-group tabs, create (key suggested from the label), edit in a dialog (key editable until first published, then locked), keyboard Move up / Move down with focus kept and position announced, activate/deactivate with usage listed. No deletion. Neutral “awaits owner confirmation” notes; nothing seeded. |
+| Term rules | Labels (NFC, whitespace-collapsed, case-insensitive) and keys unique within a namespace; blank labels, malformed keys and cross-namespace references rejected; stale versions and stale order rejected. Inactive terms: not offered for new selections, kept with a warning on records that already use them (unrelated edits save), still displayed on published pages. Unresolved saved values are kept and shown explicitly, block publishing, and are never silently replaced. |
+| Taxonomy publication | Term edits change the working terms; **Publish taxonomy changes** stores one published taxonomy snapshot (lists the changes, rejects stale reviews) and never reads or writes content records. The local site resolves labels and order from it; content can be published only with terms in it. |
+| Tour selectors | Type/category/standard selects and the Tags field list active managed terms in display order; inactive, unresolved and wrong-group saved values are labelled; an editor banner explains them. |
+| Day trips | New record kind `dayTrip` in the existing content stores. List (search, status filter incl. “published with unpublished changes”, sorts incl. featured/display order and price-missing-last), create/edit, duplicate, archive/restore, draft save, local publish/unpublish, draft and published previews. Fields: title, slug, summary, overview, multiple destinations, tags, optional duration (hours/days), optional ordered schedule (stable IDs, keyboard reorder), cover and ordered gallery with contextual alt, inclusions, exclusions, what to bring, provisional pricing, featured, display order, SEO (title, description, share image, noindex). No accommodation, type, category or standard fields. |
+| Day-trip rules | Draft: title only; supplied duration must be > 0, ≤ 2 decimals, hours ≤ 24 or days ≤ 7, unit hours/days. Publish: title, unique valid slug, overview, ≥ 1 published destination, usable cover with alt, ≥ 1 inclusion, explicit (complete) pricing, schedule items with headings; summary/duration missing are warnings only. Schedule count is never tied to duration. |
+| Defaults | Day-trip defaults editor (`#/day-trips/defaults`): default inclusions and what-to-bring items, stale-checked, unsaved-changes guard, nothing seeded. **Copy defaults into this draft** in the editor is the only path into a record; with populated lists it asks *Replace lists* or *Add missing defaults*; the copy stays unsaved until *Save draft* and never touches other records. Editing defaults changes no day trip. |
+| Pricing | The tour implementation is reused (decimal strings, currency precision, basis per person/group/vehicle, request stores no amount, missing ≠ 0); only `perPerson` says “per person”. The pricing editor is now a shared section used by tours and day trips. |
+| Routes / local site | Registry in `shared/routes.js`: `/tours/day-trips` (hub, reserved for tours) and `/tours/day-trips/{slug}`; no collision with `/tours/{slug}`. Local listing `#/site/tours/day-trips` (published only, featured → display order → title, destination and tag labels, price basis, shared footer), detail pages with optional schedule, inclusions, exclusions and what to bring, and a *Day trips* group on `#/site`. Tag filter `?filter=tag&value=<published tag key>` with readable states for unknown values and unsupported filters; the page shows the public pattern and its local hash equivalent. Hash route parsing now splits the query before decoding, so encoded `&`/`=` in values survive. |
+| Storage | IndexedDB version 3 (additive): new `taxonomyPublished` and `defaults` stores; existing terms gain key/order/active in the upgrade transaction (IDs, labels, timestamps, versions unchanged) and become the first published taxonomy (origin “upgrade”) so the local site is unchanged. Same envelope, snapshot, stale-version, validation-inside-transaction and `complete`-only conventions. |
+| Safeguards | A destination used by a published day trip cannot be unpublished or archived (message names the day trip; no cascade). Media used by day-trip drafts or published snapshots cannot be deleted; usage links open the day-trip editor. |
+| Backup | Data backup schemasVersion 3 (day trips, terms with key/order/active, `taxonomyPublication`, `dayTripDefaults`). Older backups: v2 keeps current day trips, defaults and the terms/images they use; v1 additionally keeps site records. Known terms keep their current keys on an older import. The Backup screen runs a dry run, lists what is kept and any term warnings; kept records are validated against the imported content before anything is written; missing image files are reported after import. Media backup format unchanged. |
+| Team follow-up | After publishing a profile the editor offers **Review team visibility** (also on the *Team page* tab), opening the Team list focused on the order & visibility panel (`#/team?focus=lineup`). Profile and order publication stay independent. |
+
+### Checks actually run (29 Oct 2026, Windows 11)
+
+Server: `python tools/serve.py 5181` (Python 3.14.7), on a separate port so the CMS data of the server already
+running on 5173 was not touched. Playwright 1.63.0 (`playwright-core`, not a project dependency).
+
+1. **Baseline before changes:** 53/53 unit tests and 45/45 end-to-end checks.
+2. **Unit tests** (`tests/index.html`, 70 tests = 53 existing + 17 new in `tests/taxonomy-daytrip.test.js`):
+   **70 passed, 0 failed** in bundled Chromium 153.0.8010.12, Google Chrome 156.0.8078.48 and Microsoft Edge
+   156.0.4314.50. New coverage: label/key normalisation, namespace separation, legacy term upgrade; repository
+   create/edit/stable IDs/key lock/no deletion; per-namespace ordering with stale order; publishing terms never
+   publishes content; inactive selections (kept, warned, rejected when new, displayed on published pages, kept by
+   duplicate); cross-namespace and unresolved references; day-trip schema exclusions, duration rules, schedule
+   independence and publish minimum; snapshot isolation, destination dependency and media protection (draft and
+   published-only references); decimal pricing and basis wording; defaults (nothing seeded, merge/replace, stale and
+   simulated quota failure, no effect on other records); routes, reserved hub, archived slug uniqueness, hash parsing;
+   stale writes and simulated failures for day trips and taxonomy writes; **upgrade of a populated version-2
+   database** (destinations with route history and redirect, accommodation, published tour with terms, settings,
+   profile, lineup, image Blob); v3 data + media round-trip; **v2 backup compatibility** (keeps day trips, defaults,
+   used terms; keeps known term keys) and rejection when kept links would break; v3 import rejections
+   (cross-namespace, re-keyed or missing published terms, malformed keys, duplicate labels, unknown images,
+   defaults shape, invalid duration); tag-filter outcomes; team follow-up action.
+3. **End-to-end** (`tests/e2e.mjs`, fresh browser profiles, desktop 1400×900 and phone 390×844, bundled Chromium):
+   **55 passed, 0 failed** in two consecutive runs (45 existing + 10 new). New checks: Taxonomies entry and
+   sidebar labels, create/duplicate/malformed/blank errors with focus, keyboard reorder keeping focus, search,
+   rename keeping the ID and key, publish; tour selectors with an inactive saved tag (kept, warned, unrelated save
+   works, not offered to new tours); defaults editor (empty start, save, reload, unsaved-changes guard); day trip via
+   Add Activity: zero duration rejected, save, reload, copy defaults with warning, schedule keyboard reorder, publish
+   errors, publish, published preview (per group, tag, duration, schedule, what to bring); draft edit isolation,
+   list status/search, duplicate; local listing, tag-filter chip, unknown value and unsupported filter, detail page
+   without management details, shared footer; destination unpublish/archive blocked by the published day trip;
+   team **Review team visibility** landing with focus and no order publication; v3 backup round-trip into a fresh
+   profile and a v2 backup keeping three day trips; phone-width Taxonomies, day-trip editor tabs, list and listing
+   without horizontal page scroll. The final check still reports zero non-local requests and no page errors.
+4. **Visual review** of screenshots (Taxonomies, day-trip inclusions with copied defaults, published day-trip
+   preview, filtered local listing, team visibility landing, phone screens).
+
+Defects found by these checks and fixed: a literal “null” on the Taxonomies screen (native `append` of `null`; the
+e2e suite now fails on stray “null”/“undefined” text on the new screens); an older-backup import would have
+re-derived keys for terms that already existed, changing locked published keys (now carried over); encoded `&` in a
+hash query value split the value; the provisional-price note on tour and day-trip pages lacked side padding;
+media-usage and redirect links would have used `#/dayTrips/…` (now mapped per kind); the old taxonomy screen's
+“Tour categorys” heading.
+
+Existing tests adjusted because requirements changed (not to hide failures): the unit taxonomy test no longer
+deletes a term (deletion removed by this phase); expected database version 2 → 3 and backup schemasVersion 2 → 3
+(three assertions); the “unsupported version” probe uses 4 instead of 3; the v1-backup fixtures also drop the new
+v3-only keys. In the e2e suite the placeholder check now uses Blogs › Blog Posts (Activities / day trips is no
+longer a placeholder), two backup headers expect schemasVersion 3, and the legacy-import check matches the new
+notice wording.
+
+Not run: Firefox and Safari/WebKit (not installed); the e2e suite in Chrome/Edge channels (unit suite only);
+screen-reader testing; real storage exhaustion (simulated); multi-tab editing of the taxonomy order beyond the
+stale-order tests. The unsaved-changes guard of the day-trip editor is the shared editor's guard (browser-tested on
+other editors); the defaults editor's guard is browser-tested.
+
+### Local assumptions (conservative, reversible)
+
+- Taxonomy changes are published together as one snapshot; existing terms became the first snapshot on upgrade.
+- Label uniqueness ignores case and extra whitespace (NFC); keys are compared exactly; keys lock on first
+  publication.
+- The tag filter value is the published tag key (trimmed, case-insensitive); inactive published tags still match.
+- Day-trip duration limits (24 hours / 7 days, two decimals) are sanity checks; schedule items need a heading.
+- Day trips default to price on request, like tours.
+- Older backups keep local day trips, defaults and the terms/images they use (they contain no day-trip data).
+
+### Limitations
+
+- Terms cannot be deleted; a mistaken term must be renamed or deactivated.
+- Taxonomy publication is all-or-nothing; there is no per-term approval or history beyond the current snapshot.
+- The local day-trip listing supports only the tag filter; listing and page layouts approximate the live site.
+- Defaults are copied as plain text; a copy does not follow later changes to the defaults (by design).
+- Older CMS tabs still running version-2 code must be reloaded after the database upgrade.
+
+### Acceptance checklist results (phase 3)
+
+| Checklist item | Result | Evidence |
+| --- | --- | --- |
+| Navigation: Taxonomies added, day-trip entries wired, other groups unchanged | Pass | E2E taxonomies and placeholder checks; all phase 1–2 checks pass |
+| Namespaces, term fields, nothing seeded, neutral notes | Pass | Unit taxonomy rules/repository tests; E2E taxonomies check |
+| Uniqueness, normalisation, stable IDs, locked keys, malformed/blank/cross-namespace rejected, no deletion | Pass | Unit repository and reference tests; E2E error and rename steps |
+| Searchable screen, create/edit, keyboard ordering with focus, activate/deactivate | Pass | E2E taxonomies and tour-selector checks |
+| Inactive terms on existing records; unresolved values explicit | Pass | Unit inactive/reference tests; E2E tour-selector check |
+| Taxonomy publication policy never publishes content; public pages show no management controls | Pass | Unit ordering/publication test; E2E listing check |
+| Day-trip list/editor features and field set | Pass | E2E day-trip checks; unit schema test |
+| Day-trip validation and publication minimum; duration not tied to schedule | Pass | Unit day-trip validation test; E2E publish errors |
+| Defaults editor and explicit copy without side effects | Pass | Unit defaults test; E2E defaults and copy steps |
+| Decimal pricing and basis wording | Pass | Unit pricing test; E2E preview and listing |
+| Populated-database upgrade | Pass | Unit v2 → v3 upgrade test (and existing v1 → v3 test) |
+| Snapshots, dependency and media safeguards, stale/failed writes | Pass (failures simulated) | Unit snapshot/dependency/stale tests; E2E dependency check |
+| Routes, local listing/detail, tag filter, hash equivalents documented | Pass | Unit route and filter tests; E2E listing check |
+| Backup v3 round-trip, older-backup compatibility, missing media reported | Pass | Unit backup tests; E2E backup check |
+| Team “Review team visibility” follow-up | Pass | Unit adapter test; E2E team check |
+| Desktop and phone layouts of new screens | Pass | E2E mobile check; visual review |
+
+---
 
 ## Phase 2 — Site settings and Team (29 Oct 2026)
 
@@ -65,6 +188,15 @@ Defects found by these checks and fixed: a literal “null” in the team-order 
 publish-order button read “Order published” before any order existed; Chromium's `Intl` accepted the abbreviation
 `EAT` as a timezone (now IANA Area/Location names only); links in the company summary and profile pages were not
 visibly styled as links.
+
+**Post-delivery fix (29 Oct 2026): “The CMS scripts did not load” after the update.** Cause, reproduced in Chromium:
+`python -m http.server` sends no `Cache-Control`, so after the update a browser could reuse an older cached copy of
+`src/storage/content-repository.js` next to newer modules that import `CONTEXT_STORES` from it, and the module graph
+failed to link. A real-cache demonstration (no request interception) showed the same failure with the plain server
+and none with the new `tools/serve.py` (`Cache-Control: no-cache`, explicit `text/javascript`). `src/boot-check.js`
+now shows the underlying error, explains stale cached files and offers **Refresh CMS files and reload** (re-downloads
+the page's scripts, styles and JSON with `cache: 'reload'`, then reloads; IndexedDB untouched). New end-to-end check
+45 covers it. After the fix: 53/53 unit tests and **45/45** end-to-end checks (two runs) served by `tools/serve.py`.
 
 Not run: Firefox and Safari/WebKit (not installed here); screen-reader testing; real storage exhaustion (simulated
 by aborting the transaction); multi-tab editing of the same team order beyond the stale-version tests.
@@ -136,7 +268,7 @@ by aborting the transaction); multi-tab editing of the same team order beyond th
 
 | Area | Implemented |
 | --- | --- |
-| Shell | Gold dashboard, logo, 15 sidebar groups and mobile sidebar preserved. Tours List / Add Tour, Destinations List / Add Destination, Accommodations List / Add Accommodation and the **Add Tour** quick action open working modules. All other entries (including Activities / day trips, Bookings, Gallery…) remain labelled placeholders. Hash routes with stable record IDs; reload and back/forward work. |
+| Shell | Gold dashboard, logo, 15 sidebar groups and mobile sidebar preserved. Tours List / Add Tour, Destinations List / Add Destination, Accommodations List / Add Accommodation and the **Add Tour** quick action open working modules. All other entries (including Activities / day trips — wired in phase 3 — Bookings, Gallery…) remain labelled placeholders. Hash routes with stable record IDs; reload and back/forward work. |
 | Lists | Heading, counts, search, status filter (active, draft, published, published-with-unpublished-changes, archived, all), deterministic sorts (updated, title; manual order for destinations; price with missing last and recommended rank for tours), empty states, edit, preview, duplicate, archive/restore. No permanent delete. Filters persist in the URL. |
 | Editors | Sticky title/actions, tabbed sections, field-level errors with an error summary that links to fields, focus moves to the first invalid field (switching tab), save status (unsaved / saving / saved / error) in a live region, dirty tracking, unsaved-changes guard for in-app links, sidebar, browser Back/Forward and reload. Edits typed while a save is in flight are kept, never discarded. |
 | Destinations | Title, display name, internal name, slug, order, overview, best time, wildlife, ordered activities, structured travel tips, read-only legacy tips with non-destructive conversion, cover + ordered gallery, SEO. |
@@ -244,3 +376,9 @@ evidenced), the production team page template and whether profiles have public U
 contact details (all entered values are local drafts), staff accounts and permissions (F1), notification recipients
 and any integration settings (G2 and production configuration — deliberately not stored in public settings), and
 how production SEO defaults are applied (D1/D2).
+
+Phase 3 additions: the actual tour types, categories, standards and tags and their definitions (B4); the approved
+default inclusions and what-to-bring texts and how the live site applies them; the production tag-filter value
+format and other listing filters; the confirmed day-trip field set, publication minimum and duration rules; day-trip
+pricing beyond request / manual “from” (B2/B3); whether taxonomy changes need per-term approval or deletion; existing
+day-trip URLs and real redirects (C2). See `docs/TAXONOMIES_AND_DAY_TRIPS.md`.

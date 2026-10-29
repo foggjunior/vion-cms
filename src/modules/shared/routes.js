@@ -1,9 +1,21 @@
 // Slug and local route rules. Route prefixes are a prototype assumption (C2 legacy slugs unresolved);
 // they never alter live website URLs. Redirects are planned local entries, not real server redirects.
-export const ROUTE_PREFIXES = Object.freeze({ destination: '/destinations/', accommodation: '/accommodations/', tour: '/tours/' });
+//
+// Local route registry (public-pattern paths shown in the local preview site; hash URLs prefix them with #/site):
+//   /destinations/{slug}  /accommodations/{slug}  /tours/{slug}
+//   /tours/day-trips               day-trip listing hub (optional ?filter=tag&value={tag key})
+//   /tours/day-trips/{slug}        day-trip page
+//   /tours/zanzibar-trips  /tours/climbing-trips   reserved hubs (no local page)
+// A tour slug can never contain "/", so /tours/{slug} cannot collide with /tours/day-trips/{slug}; the hub
+// paths themselves are reserved so no tour can claim them.
+export const ROUTE_PREFIXES = Object.freeze({ destination: '/destinations/', accommodation: '/accommodations/', tour: '/tours/', dayTrip: '/tours/day-trips/' });
+export const HUB_ROUTES = Object.freeze({ dayTrips: '/tours/day-trips', zanzibarTrips: '/tours/zanzibar-trips', climbingTrips: '/tours/climbing-trips' });
 
 // Documented hub paths that a record slug must never claim.
-export const RESERVED_ROUTES = Object.freeze(['/tours/day-trips', '/tours/zanzibar-trips', '/tours/climbing-trips']);
+export const RESERVED_ROUTES = Object.freeze(Object.values(HUB_ROUTES));
+
+// CMS editor hash paths per content kind (#/<path>, #/<path>/<id>), not public routes.
+export const CMS_PATHS = Object.freeze({ destination: 'destinations', accommodation: 'accommodations', tour: 'tours', dayTrip: 'day-trips' });
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const SLUG_MAX_LENGTH = 96;

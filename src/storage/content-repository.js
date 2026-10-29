@@ -1,7 +1,8 @@
-// Content repository for destinations, accommodations and tours. UI code talks to this interface only.
+// Content repository for destinations, accommodations, tours and day trips. UI code talks to this interface only.
 // Every mutation re-validates inside its own readwrite transaction, so rules hold even if the UI is bypassed.
 import { STORES, request, runTransaction } from './idb.js';
 import { KIND_LABELS, dependentsOf, duplicateRecord, makeContext, newWorkflow } from '../modules/shared/records.js';
+import { TAXONOMY_PUBLICATION_ID } from '../modules/shared/taxonomy.js';
 import { planRedirects, routeFor, uniqueSlug } from '../modules/shared/routes.js';
 import { errorsOnly, validateDraft, validatePublish } from '../modules/shared/validation.js';
 
@@ -15,17 +16,19 @@ export class RepoError extends Error {
 }
 
 // Every store that readContext() reads. Transactions that need the full context (content writes, media
-// deletion, taxonomy deletion, site writes) use this scope so media usage covers settings and team profiles.
-export const CONTEXT_STORES = Object.freeze([STORES.records, STORES.published, STORES.redirects, STORES.assets, STORES.assetBlobs, STORES.taxonomies, STORES.siteRecords, STORES.sitePublished]);
+// deletion, site writes) use this scope so media usage covers settings and team profiles, and publication
+// checks see the published taxonomy.
+export const CONTEXT_STORES = Object.freeze([STORES.records, STORES.published, STORES.redirects, STORES.assets, STORES.assetBlobs, STORES.taxonomies, STORES.taxonomyPublished, STORES.siteRecords, STORES.sitePublished]);
 
 export async function readContext(tx, validator, siteValidator = null) {
   const store = name => tx.objectStore(name);
-  const [records, published, redirects, assets, blobKeys, taxonomies, siteRecords, sitePublished] = await Promise.all([
+  const [records, published, redirects, assets, blobKeys, taxonomies, taxonomyPublication, siteRecords, sitePublished] = await Promise.all([
     request(store(STORES.records).getAll()), request(store(STORES.published).getAll()), request(store(STORES.redirects).getAll()),
     request(store(STORES.assets).getAll()), request(store(STORES.assetBlobs).getAllKeys()), request(store(STORES.taxonomies).getAll()),
+    request(store(STORES.taxonomyPublished).get(TAXONOMY_PUBLICATION_ID)),
     request(store(STORES.siteRecords).getAll()), request(store(STORES.sitePublished).getAll())
   ]);
-  return makeContext({ records, published, redirects, assets, blobKeys, taxonomies, siteRecords, sitePublished, validator, siteValidator });
+  return makeContext({ records, published, redirects, assets, blobKeys, taxonomies, taxonomyPublication: taxonomyPublication || null, siteRecords, sitePublished, validator, siteValidator });
 }
 
 export function createContentRepository({ db, validator, siteValidator = null, events, clock = () => new Date().toISOString(), newId = () => crypto.randomUUID(), faults = null }) {
@@ -173,7 +176,8 @@ export function createContentRepository({ db, validator, siteValidator = null, e
         const title = `${source.record.title} (copy)`;
         const slug = uniqueSlug(source.record.slug ? `${source.record.slug}-copy` : title, source.kind, newRecordId, ctx);
         const record = duplicateRecord(source.record, { id: newRecordId, now: clock(), slug, title });
-        const errors = errorsOnly(validateDraft(record, ctx));
+        // Term references copied from the original count as already saved (inactive ones stay, with a warning).
+        const errors = errorsOnly(validateDraft(record, ctx, { previous: source.record }));
         if (errors.length) throw new RepoError('validation', 'The copy could not be created because the original has invalid values. Open and fix the original first.', { issues: errors });
         const next = { id: record.id, kind: record.kind, record, workflow: newWorkflow() };
         await request(tx.objectStore(STORES.records).put(next));
