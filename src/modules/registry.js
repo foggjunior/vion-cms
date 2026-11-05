@@ -1,3 +1,6 @@
+import {createWebsiteConnectionView} from '../operations/website-view.js';
+import { createOperationsView } from '../operations/views.js';
+import { createBookingsView } from './bookings-view.js';
 // Hash routes for the content modules and local tools. Record IDs in routes are stable UUIDs.
 import { destinationModule } from './destinations.js';
 import { accommodationModule } from './accommodations.js';
@@ -20,6 +23,7 @@ export const CONTENT_MODULES = Object.freeze({ tours: tourModule, destinations: 
 
 // Sidebar/quick-action labels that open working modules. Every other label stays a placeholder.
 export const CONTENT_ROUTES = Object.freeze({
+  'All Bookings': '#/bookings', 'Connect website':'#/bookings/connect', 'Quotation': '#/quotations', 'Quotations List':'#/quotations', 'Add Quotation / Itinerary':'#/quotations/new',
   'Tours List': '#/tours', 'Add Tour': '#/tours/new',
   'Activities / day trips': '#/day-trips', 'Add Activity': '#/day-trips/new', 'Taxonomies': '#/taxonomies',
   'Destinations List': '#/destinations', 'Add Destination': '#/destinations/new',
@@ -41,6 +45,15 @@ export function parseRoute(hash) {
   const modules = 'tours|destinations|accommodations|day-trips';
   let m;
   if (path === '/' || path === '/dashboard') return { type: 'dashboard' };
+  if (path === '/bookings/connect') return {type:'website-connection'};
+  if (path === '/bookings') return { type: 'bookings' };
+  if (path === '/bookings/new') return { type: 'bookings', edit: true };
+  if ((m = path.match(new RegExp(`^/bookings/(${UUID})$`, 'i')))) return { type: 'bookings', id: m[1] };
+  if (path === '/quotations') return params.get('booking') ? {type:'operation', mode:'quote', params} : {type:'operation',mode:'list',params};
+  if (path === '/quotations/new') return {type:'operation',mode:'quote',params};
+  if ((m=path.match(new RegExp(`^/quotations/(${UUID})$`,'i')))) return {type:'operation',mode:'quote',id:m[1],params};
+  if ((m=path.match(new RegExp(`^/costing/tour/(${UUID})$`,'i')))) return {type:'operation',mode:'tour',id:m[1],params};
+  if ((m=path.match(new RegExp(`^/rates/(destination|accommodation)/(${UUID})$`,'i')))) return {type:'operation',mode:'rates',entityKind:m[1],id:m[2],params};
   if (path === '/day-trips/defaults') return { type: 'day-trip-defaults' };
   if ((m = path.match(new RegExp(`^/(${modules})/?$`)))) return { type: 'list', def: CONTENT_MODULES[m[1]], params };
   if ((m = path.match(new RegExp(`^/(${modules})/new$`)))) return { type: 'editor', def: CONTENT_MODULES[m[1]], id: null };
@@ -64,6 +77,9 @@ export function parseRoute(hash) {
 
 export function createView(route, app) {
   switch (route.type) {
+    case 'website-connection': return createWebsiteConnectionView({app});
+    case 'bookings': return createBookingsView({ app, id: route.id, edit: route.edit });
+    case 'operation': return createOperationsView({ app, mode:route.mode, id:route.id, entityKind:route.entityKind, params:route.params });
     case 'list': return createListView({ def: route.def, app, params: route.params });
     case 'editor': return createEditorView({ def: route.def, id: route.id, app });
     case 'preview': return createPreviewView({ def: route.def, id: route.id, app, params: route.params });

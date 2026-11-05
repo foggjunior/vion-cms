@@ -1,3 +1,4 @@
+import {privateRatesSection} from '../operations/editor-sections.js';
 // Accommodations module. Type/standard examples come from the audit and stay free text; public visibility
 // (A3) and camp separation (A4) are unresolved, so publicPageEnabled is independent of the workflow.
 import { h } from '../components/dom.js';
@@ -9,7 +10,7 @@ function basics(ed) {
     ed.group(null,
       ed.text('title', { label: 'Name', required: true, onInput: () => ed.updateSlugFromTitle?.() }),
       ed.text('type', { label: 'Type', required: 'publish', list: 'accommodation-type-examples', hint: 'Suggestions (Hotel, Lodge, Campsite) are audit examples, not fixed rules. Any text is allowed.' }),
-      ed.text('standard', { label: 'Standard', required: 'publish', list: 'accommodation-standard-examples', hint: 'Suggestions (Luxury, Semi Luxury, Normal) are audit examples, not fixed rules.' }),
+      ed.text('standard', { label: 'Standard', required: 'publish', list: 'accommodation-standard-examples', hint: 'Suggestions include Luxury, Mid range and Budget. Existing legacy values are preserved; any text is allowed.' }),
       ed.select('setting', { label: 'Setting', options: Object.entries(ACCOMMODATION_SETTINGS).map(([value, label]) => ({ value, label })) }),
       ed.checkbox('publicPageEnabled', { label: 'Public page enabled', hint: 'Prototype assumption: new records default to enabled. Real public visibility rules (A3) are not confirmed; this does not change any live route.' })),
     h('datalist', { id: 'accommodation-type-examples' }, ACCOMMODATION_TYPE_EXAMPLES.map(v => h('option', { value: v }))),
@@ -68,7 +69,7 @@ export const accommodationModule = {
     { id: 'location', label: 'Destination', render: location },
     { id: 'content', label: 'Description & amenities', render: content },
     { id: 'contact', label: 'Contact', render: contact },
-    'media', 'seo', 'preview'
+    privateRatesSection, 'media', 'seo', 'preview'
   ],
   columns: [
     {

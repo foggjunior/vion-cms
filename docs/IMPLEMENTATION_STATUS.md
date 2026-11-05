@@ -382,3 +382,11 @@ default inclusions and what-to-bring texts and how the live site applies them; t
 format and other listing filters; the confirmed day-trip field set, publication minimum and duration rules; day-trip
 pricing beyond request / manual “from” (B2/B3); whether taxonomy changes need per-term approval or deletion; existing
 day-trip URLs and real redirects (C2). See `docs/TAXONOMIES_AND_DAY_TRIPS.md`.
+
+## Internal costing, bookings and quotations — 2 November 2026
+
+Implemented private park/general STO/room-category rate cards, daily tour cost templates, accommodation-STO percentage profit, booking register/details, booking-linked and standalone quotation editors, actual guest-only PDF downloads, private operational backup/merge import, and a staff-authenticated read-only website-booking connector. See docs/COSTING_BOOKINGS_QUOTATIONS.md (from docs/, COSTING_BOOKINGS_QUOTATIONS.md).
+
+Open Bookings > Quotation, All Bookings or Connect website. Content editors have Private rates / STO or Costs (internal) tabs after saving a record. General backups exclude operational records: export the separate private backup from Quotations. The website source D:/viona-africa was inspected read-only; no live sign-in/read/write was performed. The connector still requires an authorised existing Firebase staff:true account and matching deployed rules. Live tour IDs need explicit local catalogue matching.
+
+Verified in Chrome: 81 unit checks, 55 existing E2E checks and 14 new operational E2E assertions passed. Fixed waiting assumptions in the existing UI tests; no remaining failed check in the final runs. Bundled Chromium was unavailable; these counts are Chrome only. Nothing committed, pushed or deployed.

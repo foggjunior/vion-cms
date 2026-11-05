@@ -13,7 +13,7 @@ const browser = await chromium.launch(process.env.BROWSER_CHANNEL ? { channel: p
 const page = await browser.newPage();
 const external = [];
 page.on('request', req => { if (!req.url().startsWith(base) && !req.url().startsWith('blob:') && !req.url().startsWith('data:')) external.push(req.url()); });
-page.on('pageerror', err => console.error('page error:', err.message));
+page.on('pageerror', err => console.error('page error:', err.stack || err.message));
 await page.goto(`${base}/tests/index.html`);
 await page.waitForFunction(() => window.__testResults, null, { timeout: 120000 });
 const { passed, failed, results } = await page.evaluate(() => window.__testResults);

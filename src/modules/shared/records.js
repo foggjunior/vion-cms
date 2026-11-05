@@ -12,7 +12,7 @@ export const KIND_LABELS = Object.freeze({ destination: 'Destination', accommoda
 export const ACCOMMODATION_SETTINGS = Object.freeze({ unspecified: 'Not specified', insidePark: 'Inside park', outsidePark: 'Outside park' });
 // Audit examples only, offered as suggestions; values remain free text (not confirmed business rules).
 export const ACCOMMODATION_TYPE_EXAMPLES = Object.freeze(['Hotel', 'Lodge', 'Campsite']);
-export const ACCOMMODATION_STANDARD_EXAMPLES = Object.freeze(['Luxury', 'Semi Luxury', 'Normal']);
+export const ACCOMMODATION_STANDARD_EXAMPLES = Object.freeze(['Luxury', 'Mid range', 'Budget', 'Semi Luxury', 'Normal']);
 export const MEAL_OPTIONS = Object.freeze(['Breakfast', 'Lunch', 'Dinner']);
 
 // Numeric fields edited as raw text so malformed input can be reported instead of silently dropped.

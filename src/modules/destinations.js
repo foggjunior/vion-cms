@@ -1,3 +1,4 @@
+import {privateRatesSection} from '../operations/editor-sections.js';
 // Destinations module: observed public fields plus proposed structured tips, explicit cover, order and SEO.
 import { button, h } from '../components/dom.js';
 import { confirmDialog } from '../components/dialog.js';
@@ -71,7 +72,7 @@ export const destinationModule = {
     { id: 'basics', label: 'Basics', render: basics },
     { id: 'content', label: 'Content', render: content },
     { id: 'tips', label: 'Travel Tips & Activities', render: tips },
-    'media', 'seo', 'preview'
+    privateRatesSection, 'media', 'seo', 'preview'
   ],
   columns: [
     { label: 'Images', cell: env => String((env.record.cover ? 1 : 0) + (env.record.gallery?.length || 0)) },

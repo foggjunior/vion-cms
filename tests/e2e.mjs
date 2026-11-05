@@ -44,7 +44,7 @@ async function check(name, fn) {
 }
 function expect(condition, message) { if (!condition) throw new Error(message); }
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.BROWSER_CHANNEL ? {channel:process.env.BROWSER_CHANNEL} : {});
 async function newContext(viewport = { width: 1400, height: 900 }) {
   const context = await browser.newContext({ viewport, acceptDownloads: true });
   context.on('request', req => { const url = req.url(); if (!url.startsWith(base) && !url.startsWith('blob:') && !url.startsWith('data:')) external.push(url); });
@@ -70,7 +70,7 @@ async function save(target = page) {
   await target.waitForFunction(() => ['saved', 'error', 'idle'].includes(document.querySelector('.save-status')?.dataset.state), null, { timeout: 15000 });
 }
 async function tab(name) { await page.getByRole('tab', { name, exact: false }).first().click(); }
-async function dialogButton(name) { await page.locator('dialog[open]').getByRole('button', { name, exact: true }).click(); await page.waitForTimeout(150); }
+async function dialogButton(name) { const modal=page.locator('dialog[open]').last(); await modal.getByRole('button', { name, exact: true }).click(); await modal.waitFor({state:'detached'}); }
 async function makeImage(width, height, type = 'image/png') {
   const b64 = await page.evaluate(async ({ width, height, type }) => {
     const c = new OffscreenCanvas(width, height);
@@ -126,9 +126,9 @@ const text = sel => page.locator(sel).innerText();
 
 // ---- 1. Shell ----
 await page.goto(`${base}/`);
-await check('Dashboard renders with gold branding, logo and 15 navigation groups', async () => {
+await check('Dashboard renders with gold branding, logo and 12 navigation groups', async () => {
   expect(await page.locator('h1#pageTitle').textContent() === 'Dashboard', 'dashboard heading missing');
-  expect(await page.locator('.nav-toggle').count() === 15, `expected 15 groups, got ${await page.locator('.nav-toggle').count()}`);
+  expect(await page.locator('.nav-toggle').count() === 12, `expected 12 groups, got ${await page.locator('.nav-toggle').count()}`);
   expect(await page.locator('.brand img[src="assets/logo-dark.svg"]').count() === 1, 'logo missing');
   const gold = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--gold').trim());
   expect(gold === '#aa791b', `gold token changed: ${gold}`);
@@ -147,7 +147,7 @@ await check('Sidebar list/Add entries open the working modules', async () => {
 // Phase 3 wired Activities / day trips and Add Activity (previously placeholders) and added Taxonomies.
 await check('Other modules remain honest placeholders; Add Tour quick action opens the tour editor', async () => {
   await open(`#/dashboard`);
-  await openNav(page, 'Bookings', 'All Bookings');
+  await openNav(page, 'Users', 'Users List');
   await page.locator('#modulePreview').waitFor({ state: 'visible', timeout: 3000 });
   expect(/NOT BUILT IN THIS PROTOTYPE/.test(await text('#modulePreview')), 'placeholder wording');
   await openNav(page, 'Blogs', 'Blog Posts');
@@ -158,7 +158,7 @@ await check('Other modules remain honest placeholders; Add Tour quick action ope
   expect(await page.evaluate(() => location.hash) === '#/tours/new', 'quick action route');
   await open(`#/dashboard`);
   await page.locator('.quick-action', { hasText: 'New Booking' }).click();
-  await page.locator('#modulePreview h2', { hasText: 'All Bookings' }).waitFor({ timeout: 3000 });
+  await page.locator('#moduleRoot h1', {hasText:'Bookings'}).waitFor({timeout:3000});
 });
 
 // ---- 2. Destination ----
@@ -447,6 +447,7 @@ await check('Stale saves from a second tab are rejected with a reload option; cr
   expect(stored === 'Serengeti NP (edited in tab B)', `tab A overwrote: ${stored}`);
   await page.getByRole('button', { name: 'Reload latest version' }).first().click();
   await dialogButton('Discard and reload');
+  await page.waitForFunction(()=>document.querySelector('#f-title')?.value==='Serengeti NP (edited in tab B)',null,{timeout:10000});
   expect(await page.inputValue('#f-title') === 'Serengeti NP (edited in tab B)', 'reload latest');
   await other.close();
 });
@@ -479,6 +480,7 @@ await check('Dirty editor warns on navigation; cancel keeps the form; back butto
   expect(await page.inputValue('#f-title') === 'Unsaved title edit', 'form lost after back');
   await page.locator('.submenu button', { hasText: 'Accommodations List' }).click();
   await dialogButton('Leave and discard changes');
+  await page.waitForFunction(()=>document.querySelector('#moduleRoot')?.dataset.renderedRoute==='#/accommodations'&&document.querySelector('#moduleRoot')?.dataset.ready==='true',null,{timeout:10000});
   await page.waitForSelector('#moduleRoot h1');
   expect(await page.evaluate(() => location.hash) === '#/accommodations', 'did not navigate after confirm');
   await page.goBack();
@@ -640,7 +642,7 @@ async function publishOrder() {
 
 await check('Settings submenu keeps Setting Options and adds Team; both open working screens; account Settings works', async () => {
   await open('#/dashboard');
-  expect(await page.locator('.nav-toggle').count() === 15, 'sidebar groups changed');
+  expect(await page.locator('.nav-toggle').count() === 12, 'sidebar groups changed');
   const settingsItems = await page.locator('.nav-group', { has: page.locator('.nav-toggle', { hasText: 'Settings' }) }).locator('.submenu button').allTextContents();
   expect(JSON.stringify(settingsItems) === JSON.stringify(['Setting Options', 'Team']), JSON.stringify(settingsItems));
   await openNav(page, 'Settings', 'Setting Options');
@@ -737,6 +739,7 @@ await check('Settings: duplicate visible networks and unsafe social links are re
   expect(/duplicate visible networks/.test(await text('#f-social-1-network-error')) && /rejected for safety/.test(await text('#f-social-1-url-error')), 'social errors');
   await page.getByRole('button', { name: /Remove Social profile 2/ }).click();
   await dialogButton('Remove');
+  await page.waitForFunction(()=>!window.__vionApp.currentView().isDirty(),null,{timeout:10000});
   expect(!(await page.evaluate(() => window.__vionApp.currentView().isDirty())), 'removing the extra entry should leave nothing to save');
 });
 

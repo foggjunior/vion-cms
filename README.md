@@ -110,3 +110,11 @@ supplier rates, quote totals, availability, payments and checkout, camp conversi
 analytics or other integrations, content migration, real redirects, deployment, homepage builder, bookings and
 quotations. Production decisions A1–J1 listed in the specification
 remain open; see `docs/IMPLEMENTATION_STATUS.md`.
+
+## Internal costing, bookings and quotations — 2 November 2026
+
+Implemented private park/general STO/room-category rate cards, daily tour cost templates, accommodation-STO percentage profit, booking register/details, booking-linked and standalone quotation editors, actual guest-only PDF downloads, private operational backup/merge import, and a staff-authenticated read-only website-booking connector. See docs/COSTING_BOOKINGS_QUOTATIONS.md (from docs/, COSTING_BOOKINGS_QUOTATIONS.md).
+
+Open Bookings > Quotation, All Bookings or Connect website. Content editors have Private rates / STO or Costs (internal) tabs after saving a record. General backups exclude operational records: export the separate private backup from Quotations. The website source D:/viona-africa was inspected read-only; no live sign-in/read/write was performed. The connector still requires an authorised existing Firebase staff:true account and matching deployed rules. Live tour IDs need explicit local catalogue matching.
+
+Verified in Chrome: 81 unit checks, 55 existing E2E checks and 14 new operational E2E assertions passed. Fixed waiting assumptions in the existing UI tests; no remaining failed check in the final runs. Bundled Chromium was unavailable; these counts are Chrome only. Nothing committed, pushed or deployed.

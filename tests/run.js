@@ -1,3 +1,6 @@
+import './website-bookings.test.js';
+import './costing.test.js';
+import './booking.test.js';
 import { run } from './harness.js';
 import './domain.test.js';
 import './storage.test.js';

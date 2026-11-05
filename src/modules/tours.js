@@ -1,3 +1,4 @@
+import {tourCostSection} from '../operations/editor-sections.js';
 // Tours module. Most tour fields are inferred (B1); taxonomies are managed terms awaiting definitions (B4);
 // pricing is limited to price-on-request or an explicit manual "from" price until the price model (B2/B3) is
 // confirmed.
@@ -118,6 +119,7 @@ export const tourModule = {
     { id: 'content', label: 'Overview & inclusions', render: content },
     { id: 'itinerary', label: 'Itinerary', render: itinerary },
     { id: 'pricing', label: 'Pricing', render: pricingSection },
+    tourCostSection,
     'media', 'seo', 'preview'
   ],
   columns: [

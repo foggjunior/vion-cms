@@ -247,6 +247,8 @@ export async function createEditorView({ def, id, app }) {
       }));
     }
     if (env) {
+      if (def.kind === 'tour') actionsEl.append(linkButton('Internal costs', `#/costing/tour/${env.id}`, {variant:'secondary'}));
+      if (['destination','accommodation'].includes(def.kind)) actionsEl.append(linkButton('Private rates', `#/rates/${def.kind}/${env.id}`, {variant:'secondary'}));
       actionsEl.append(linkButton('Preview', adapter.previewHref(def, env), { iconName: 'eye', variant: 'ghost', 'data-action': 'preview' }));
       if (adapter.duplicate) actionsEl.append(button('Duplicate', { variant: 'ghost', iconName: 'copy', onClick: doDuplicate, disabled: busy, 'data-action': 'duplicate' }));
       if (status === 'published' && adapter.unpublish) actionsEl.append(button('Unpublish', { variant: 'ghost', iconName: 'eye', onClick: doUnpublish, disabled: busy, 'data-action': 'unpublish' }));

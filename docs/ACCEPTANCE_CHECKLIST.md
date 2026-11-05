@@ -63,3 +63,17 @@ Status 29 October 2026: all items (phases 1, 2 and 3) verified in Chromium-based
 - [x] Desktop and phone layouts of the new screens, keyboard focus, unsaved-changes guard on the day-trip and defaults editors.
 
 Use meaningful repository/validation tests for persistence, publication snapshots, slug/dependency rules and import safety. Browser-check the critical create/edit/save/reload flow if browser tooling is available. Do not claim unperformed checks.
+
+## Costing and bookings verification, 2 November 2026
+
+- [x] Park/general STO and room-specific rates stay outside public records.
+- [x] General fallback/room selection copies rates; room and vehicle quantities remain explicit.
+- [x] STO profit example and adult/child/vehicle/room calculations tested exactly.
+- [x] Booking list/detail, manual entry, standalone/booking-linked quotation work.
+- [x] Local tour cost template copies into requested-tour quotation and recalculates crew-based lines.
+- [x] Booking/quotation PDF downloads; guest projection excludes STO/profit.
+- [x] Separate private backup and merge-import; existing content import unaffected.
+- [x] Website field mapper, stable source identity, skip-existing import and staff read guard tested with mocks.
+- [x] Messages/Email Subscribers/Vehicles removed from sidebar; text strengthened.
+- [ ] Live staff sign-in and Firestore permissions/import verification (requires authorised user).
+- [ ] Explicit live-tour-ID to local-tour-ID catalogue mapping/migration.
