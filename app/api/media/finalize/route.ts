@@ -1,0 +1,2 @@
+import {requireActor,sameOrigin,jsonBody,failure} from '../../../../server/auth.mjs';import {finishUpload} from '../../../../server/direct-media.mjs';
+export const runtime='nodejs';export const maxDuration=60;export async function POST(req:Request){try{sameOrigin(req);const actor=await requireActor(),{uploadId}=await jsonBody(req,1000);return Response.json({asset:await finishUpload(actor,uploadId)})}catch(e){return failure(e)}}

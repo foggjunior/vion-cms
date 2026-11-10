@@ -1,0 +1,523 @@
+{
+  "source": "Public audit 01-page-inventory.md, 27 October 2026",
+  "entries": [
+    {
+      "url": "/",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/about",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/about/",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/accommodation",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/accommodations",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/accommodations/kilimanjaro-wonders-hotel",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/accommodations/malaika-beach-resort",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/accommodations/millennium-camp-mweka-gate",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/accommodations/serengeti-serena-safari-lodge",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/accommodations/third-cave-camp",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/accommodations/{slug}",
+      "kind": "pattern",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/api/",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/api/*",
+      "kind": "pattern",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/blog",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/blog/{slug}",
+      "kind": "pattern",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/booking",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/contact",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/contact?enquiry=stawi-support",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/cookie-policy",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/arusha",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/arusha-national-park-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/burigi-chato-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/chemka-kikuletwa-hot-springs",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/gombe-stream-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/katavi-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/kilimanjaro-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/kilimanjaro-national-park-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/lake-manyara-national-park-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/lake-natron-game-controlled-area-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/materuni-waterfall-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/mikumi-national-park-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/mkomazi-national-park-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/mount-meru-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/ngorongoro-conservation-area-tanzania",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/nyerere-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/saanane-island-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/serengeti-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/tarangire-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/udzungwa-national-park",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/zanzibar-island",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/destinations/{slug}",
+      "kind": "pattern",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/experiences",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/experiences/mto-wa-mbu-living-heritage",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/faqs",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/favicon.ico",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/gallery",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/give-back",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/give-back/stawi-na-vion-foundation",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/images/vion/social/*.jpg",
+      "kind": "pattern",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/logo-dark.svg",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/logo-light.svg",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/logo.png",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/manifest.json",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/manifest.webmanifest",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/plan-your-safari",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/plan-your-safari?experience=mto-wa-mbu-living-heritage",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/privacy",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/reviews",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/robots.txt",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/sitemap.xml",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/tanzania-migration",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/team",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/terms",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/terms-and-conditions",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/tours",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/tours/climbing-trips",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/tours/day-trips",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/tours/day-trips/{slug}",
+      "kind": "pattern",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/tours/serengeti",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/tours/zanzibar-trips",
+      "kind": "page",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/tours/{slug}",
+      "kind": "pattern",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/videos/vion/home-hero-1080p.mp4",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    },
+    {
+      "url": "/videos/vion/home-hero-720p.mp4",
+      "kind": "asset",
+      "decision": "preserve",
+      "redirectTo": null,
+      "verified": false
+    }
+  ]
+}

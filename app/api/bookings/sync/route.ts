@@ -1,0 +1,2 @@
+import {requireActor,sameOrigin,failure} from '../../../../server/auth.mjs';import {syncBookings} from '../../../../server/booking-sync.mjs';
+export const runtime='nodejs';export const maxDuration=60;export async function POST(req:Request){try{sameOrigin(req);const actor=await requireActor();if(!['admin','reservations'].includes(actor.role))return Response.json({error:'Booking access required.'},{status:403});return Response.json(await syncBookings(actor))}catch(e){return failure(e)}}

@@ -374,6 +374,9 @@
         },
         "publicPageEnabled": {
           "type": "boolean"
+        },
+        "locationName": {
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -595,6 +598,31 @@
                 "type": "array",
                 "items": {
                   "type": "string"
+                }
+              },
+              "accommodationRooms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "accommodationId",
+                    "roomId",
+                    "roomName"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "accommodationId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "roomId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "roomName": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },

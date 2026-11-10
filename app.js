@@ -1,3 +1,5 @@
+import {renderDashboard} from './src/review/workspace-views.js';
+import {createReviewRepository} from './src/review/repository.js';
 import { h, icon as iconEl, iconMarkup as icon, linkButton } from './src/components/dom.js';
 import { notice, toast } from './src/components/feedback.js';
 import { confirmDialog } from './src/components/dialog.js';
@@ -8,28 +10,17 @@ import { CONTENT_ROUTES, createView, parseRoute } from './src/modules/registry.j
 window.__vionBooted = true;
 
 // ---- Dashboard shell (sample fixtures; unchanged layout) ----
-const modules=[['Dashboard','dashboard',[]],['Tour Packages','map',['Tours List','Add Tour','Activities / day trips','Add Activity','Taxonomies']],['Destinations','pin',['Destinations List','Add Destination']],['Accommodations','home',['Accommodations List','Add Accommodation']],['Bookings','calendar',['All Bookings','Quotation','Connect website']],['Safari Proposals','file',['Top Itineraries','Quotations List','Add Quotation / Itinerary']],['Blogs','edit',['Blog Posts','Add Post']],['Users','users',['Users List']],['Messages','message',['Messages List']],['Media Library','image',['Gallery']],['Email Subscribers','mail',['Mailing List']],['Vehicles','car',['Vehicles List','Add Vehicle']],['Migration','leaf',['Migration Posts','Add Post']],['Giving Back','heart',['Charity','Profiles']],['Settings','settings',['Setting Options','Team']]];
+const modules=[['Dashboard','dashboard',[]],['Tour Packages','map',['Tours List','Add Tour','Activities / day trips','Add Activity','Taxonomies']],['Destinations','pin',['Destinations List','Add Destination']],['Accommodations','home',['Accommodations List','Add Accommodation']],['Bookings','calendar',['All Bookings','Quotation','Connect website']],['Safari Proposals','file',['Top Itineraries','Quotations List','Add Quotation / Itinerary']],['Blogs','edit',['Blog Posts','Add Post','Categories']],['Users','users',['Users List']],['Messages','message',['Messages List']],['Media Library','image',['Gallery']],['Email Subscribers','mail',['Mailing List']],['Vehicles','car',['Vehicles List','Add Vehicle']],['Migration','leaf',['Migration Posts','Add Post']],['Giving Back','heart',['Charity','Profiles']],['Settings','settings',['Setting Options','Team','Reports','Activity','Backup & import','Redirects','Review guide']],['Content','file',['Website pages','Experiences','FAQs','Navigation']]];
 const moduleIndexFor = label => modules.findIndex(m => m[2].includes(label));
 // Working modules get real routes; every other label opens an honest placeholder.
-const hashFor = (label, index = moduleIndexFor(label)) => CONTENT_ROUTES[label] || `#/section/${index}/${slugify(label)}`;
+const hashFor = (label, index = moduleIndexFor(label)) => (label==='Add Post'&&index===12?'#/migration/new':CONTENT_ROUTES[label]) || `#/section/${index}/${slugify(label)}`;
 const nav=document.getElementById('navigation');
 modules.forEach(([label,i,children],n)=>{if (['Messages','Email Subscribers','Vehicles'].includes(label)) return; const group=document.createElement('div');group.className='nav-group';group.innerHTML=`<button class="nav-toggle ${n===0?'active':''}" data-module="${n}" ${children.length?`aria-expanded="false" aria-controls="submenu-${n}"`:'aria-current="page"'}>${icon(i)}<span>${label}</span>${children.length?'<span class="chevron">⌄</span>':''}</button>${children.length?`<div class="submenu" id="submenu-${n}" hidden>${children.map(c=>`<button data-child="${n}" data-href="${hashFor(c,n)}">${c}</button>`).join('')}</div>`:''}`;nav.appendChild(group)});
-const quick=[['New Booking','calendar','All Bookings'],['Add Tour','map','Add Tour'],['Write Blog','edit','Blog Posts'],['Quotations','file','Quotations List'],['Bookings','calendar','All Bookings'],['Gallery','image','Gallery']];
-document.getElementById('quickActions').innerHTML=quick.map(([l,i,r])=>`<button class="quick-action" data-href="${hashFor(r)}">${icon(i)}${l}</button>`).join('');
-document.getElementById('stats').innerHTML=[['Total revenue','$0','money','0%'],['Total bookings','29','calendar','160%'],['Total messages','39','message','0%'],['Active blogs','1','edit','0%']].map(([l,v,i,t])=>`<article class="stat"><span class="stat-icon">${icon(i)}</span><div><div class="stat-label">${l.toUpperCase()}</div><div class="stat-value">${v}</div><small>Sample overview</small></div><span class="stat-trend">↗ ${t}</span></article>`).join('');
-document.getElementById('plot').innerHTML=['May','Jun','Jul','Aug','Sep','Oct'].map((m,n)=>`<div class="bar-group"><div class="bar" style="height:${[0,0,0,0,30,78][n]}%">${n>3?`<b>${n===4?5:13}</b>`:''}</div><span>${m}</span></div>`).join('');
-document.getElementById('bookings').innerHTML=[['Alex Morgan','alex@example.com','6'],['Jamie Taylor','jamie@example.com','3'],['Sam Parker','sam@example.com','5'],['Robin Lee','robin@example.com','3']].map(([n,e,p])=>`<tr><td>${n}<small>${e}</small></td><td>Simple customisation</td><td>—</td><td>${p} pax</td><td><span class="badge">Pending</span></td></tr>`).join('');
-const messages=[['Alex Morgan','I would like to support the foundation.','3d ago'],['Jamie Taylor','Can you help us plan a Tanzania safari?','3d ago'],['Sam Parker','Interested in your community programmes.','5d ago'],['Robin Lee','Please share more details about our itinerary.','5d ago'],['Casey Adams','A question about our upcoming journey.','6d ago']];
-document.getElementById('messages').innerHTML=messages.map(([n,t,d])=>`<button class="message-row" data-route="Messages List"><span class="message-avatar">${n[0]}</span><span class="message-text"><span class="message-meta"><strong>${n}</strong><small>${d}</small></span><p>${t}</p></span></button>`).join('');
-for(const [id,i] of [['dateIcon','calendar'],['conversionIcon','trend'],['arrivalIcon','plane'],['emptyPlane','plane']])document.getElementById(id).innerHTML=icon(i);
-
 // ---- Shell state ----
 const el = id => document.getElementById(id);
 const dashboardEl = el('dashboard'), placeholderEl = el('modulePreview'), moduleRoot = el('moduleRoot'), pageHeading = document.querySelector('.page-heading'), previewNote = el('previewNote');
 const DASHBOARD_NOTE = previewNote.innerHTML;
-const PLACEHOLDER_NOTES = {
-  'Gallery': 'The existing Gallery’s behaviour and media ownership (E1) are unconfirmed, so it is not replaced. The local image library used by Destinations, Accommodations and Tours is available separately.'
-};
+
 
 function setActiveNav(index, childLabel) {
   document.querySelectorAll('.nav-toggle').forEach(b => { const n=Number(b.dataset.module); b.classList.toggle('active', n === index); b.removeAttribute('aria-current'); if (n === index && !childLabel) b.setAttribute('aria-current', 'page'); });
@@ -46,30 +37,17 @@ function showRegion(region) {
   else previewNote.innerHTML = DASHBOARD_NOTE;
 }
 
-function showDashboard() {
+async function showDashboard() {
   showRegion('dashboard');
   el('pageTitle').textContent = 'Dashboard';
   el('breadcrumb').textContent = 'Dashboard';
   el('pageSubtitle').textContent = 'Welcome back, Vion team. Here’s what’s happening today.';
   document.title = 'Dashboard · Vion Africa CMS';
   setActiveNav(0);
+  try{await renderDashboard(app);}catch(error){dashboardEl.replaceChildren(notice('error',error.message));}
 }
 
-function showPlaceholder(index, slug) {
-  const mod = modules[index];
-  const label = mod?.[2].find(c => slugify(c) === slug);
-  if (!label) { showNotFound(); return; }
-  showRegion('placeholder');
-  el('pageTitle').textContent = label;
-  el('pageSubtitle').textContent = 'A mapped section of your Vion workspace.';
-  el('breadcrumb').textContent = `${mod[0]} / ${label}`;
-  el('moduleTitle').textContent = label;
-  el('moduleSymbol').innerHTML = icon(mod[1]);
-  el('moduleExtra').replaceChildren(...(PLACEHOLDER_NOTES[label] ? [h('p', { class: 'module-note' }, PLACEHOLDER_NOTES[label])] : []),
-    ...(label === 'Gallery' ? [linkButton('Open local media library', '#/media', { variant: 'secondary', iconName: 'image' })] : []));
-  document.title = `${label} · Vion Africa CMS`;
-  setActiveNav(index, label);
-}
+function showPlaceholder(index,slug){const label=modules[index]?.[2].find(c=>slugify(c)===slug);if(!label){showNotFound();return;}const destination=hashFor(label,index);if(destination.startsWith('#/section/'))showNotFound();else go(destination);}
 
 function showNotFound() {
   mountView({ el: h('div', { class: 'panel empty-panel' }, iconEl('alert'), h('h1', { tabindex: '-1' }, 'Page not found'), h('p', null, 'This address does not match a page in the local CMS prototype.'), linkButton('Back to dashboard', '#/dashboard', { variant: 'primary' })), title: 'Not found', breadcrumb: 'Not found' });
@@ -145,7 +123,7 @@ async function render(hash) {
   closeMobile();
   window.scrollTo({ top: 0 });
   const route = parseRoute(hash);
-  if (route.type === 'dashboard') { showDashboard(); markReady(true); return; }
+  if (route.type === 'dashboard') { await showDashboard(); markReady(true); return; }
   if (route.type === 'placeholder') { showPlaceholder(route.moduleIndex, route.slug); markReady(true); return; }
   if (route.type === 'unknown') { showNotFound(); markReady(true); return; }
   showRegion('module');
@@ -211,10 +189,23 @@ document.addEventListener('click', e => {
 }, true);
 
 // ---- Shell interactions ----
-nav.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.module!==undefined){const n=Number(b.dataset.module);if(n===0){go('#/dashboard');return}const open=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!open));el(`submenu-${n}`).hidden=open}else if(b.dataset.href)go(b.dataset.href)});
+nav.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.module!==undefined){if(document.body.classList.contains('sidebar-collapsed'))setSidebarCollapsed(false);const n=Number(b.dataset.module);if(n===0){go('#/dashboard');return}const open=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!open));el(`submenu-${n}`).hidden=open}else if(b.dataset.href)go(b.dataset.href)});
 document.addEventListener('click',e=>{const target=e.target.closest('[data-href],[data-route]');if(target&&!nav.contains(target)&&!moduleRoot.contains(target)){go(target.dataset.href||hashFor(target.dataset.route))}if(!e.target.closest('.account-wrap'))closeAccount()});
 document.querySelector('.brand').addEventListener('click',e=>{e.preventDefault();go('#/dashboard')});el('backDashboard').onclick=()=>go('#/dashboard');
-const accountButton=el('accountButton'),accountMenu=el('accountMenu');function closeAccount(){accountMenu.hidden=true;accountButton.setAttribute('aria-expanded','false')}accountButton.onclick=()=>{accountMenu.hidden=!accountMenu.hidden;accountButton.setAttribute('aria-expanded',String(!accountMenu.hidden))};document.querySelectorAll('[data-account]').forEach(b=>b.onclick=()=>{closeAccount();if(b.dataset.account==='Settings')go(hashFor('Setting Options'));else toast(b.dataset.account==='Log out'?'This is a frontend preview. There is no signed-in session to end.':'Profile editing will be connected when user accounts are implemented.')});
+const accountButton=el('accountButton'),accountMenu=el('accountMenu');function closeAccount(){accountMenu.hidden=true;accountButton.setAttribute('aria-expanded','false')}accountButton.onclick=()=>{accountMenu.hidden=!accountMenu.hidden;accountButton.setAttribute('aria-expanded',String(!accountMenu.hidden))};document.querySelectorAll('[data-account]').forEach(b=>b.onclick=()=>{closeAccount();if(b.dataset.account==='Settings')go(hashFor('Setting Options'));else if(b.dataset.account==='Profile')go('#/profile');else go('#/session-ended')});
 const sidebar=el('sidebar'),scrim=el('scrim'),menuButton=el('menuButton');function closeMobile(){sidebar.classList.remove('open');scrim.classList.remove('visible');menuButton.setAttribute('aria-expanded','false')}menuButton.setAttribute('aria-expanded','false');menuButton.setAttribute('aria-controls','sidebar');menuButton.onclick=()=>{sidebar.classList.add('open');scrim.classList.add('visible');menuButton.setAttribute('aria-expanded','true')};scrim.onclick=closeMobile;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('dialog[open]')){const wasOpen=!accountMenu.hidden||sidebar.classList.contains('open');closeAccount();closeMobile();if(wasOpen)accountButton.focus()}});
 
 render(location.hash);
+
+app.workspace().then(async ws=>{const profile=await createReviewRepository(ws).profile();document.querySelector('.account-name strong').textContent=profile.name;document.querySelector('.avatar').textContent=profile.name.split(' ').map(x=>x[0]).slice(0,2).join('');}).catch(()=>{});
+
+// Compact desktop navigation; the same control closes the phone drawer.
+const sidebarCollapse=el('sidebarCollapse');
+function setSidebarCollapsed(collapsed){
+ document.body.classList.toggle('sidebar-collapsed',collapsed);
+ sidebarCollapse.setAttribute('aria-expanded',String(!collapsed));
+ sidebarCollapse.setAttribute('aria-label',collapsed?'Expand sidebar':'Collapse sidebar');
+ sidebarCollapse.textContent=collapsed?'›':'‹';
+}
+sidebarCollapse.onclick=()=>{if(matchMedia('(max-width:700px)').matches){closeMobile();menuButton.focus();}else setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));};
+nav.querySelectorAll('.nav-toggle').forEach(button=>{const label=button.querySelector('span')?.textContent;button.setAttribute('aria-label',label);button.title=label;});

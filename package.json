@@ -1,0 +1,38 @@
+{
+  "name": "vion-cms",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare:workspace": "node tools/prepare-cloud.mjs",
+    "dev": "npm run prepare:workspace && next dev --hostname 127.0.0.1 --port 3000",
+    "build": "npm run prepare:workspace && next build",
+    "start": "next start --hostname 127.0.0.1 --port 3000",
+    "test:server": "node --test server/tests/*.test.mjs",
+    "staff:bootstrap": "node --env-file-if-exists=.env.local tools/bootstrap-staff.mjs",
+    "migrate:plan": "node --env-file-if-exists=.env.local tools/migrate-cloud.mjs"
+  },
+  "dependencies": {
+    "next": "16.4.5",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "firebase": "^12.0.0",
+    "firebase-admin": "14.5.0",
+    "cloudinary": "^2.7.0",
+    "resend": "^6.0.0",
+    "fake-indexeddb": "^6.2.0",
+    "sharp": "^0.34.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "tailwindcss": "4.3.5",
+    "@tailwindcss/postcss": "4.3.5",
+    "typescript": "^5.9.0",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  }
+}

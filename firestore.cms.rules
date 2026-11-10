@@ -1,0 +1,16 @@
+rules_version = '2';
+// CMS-only namespaced database policy. Do NOT replace the public website's rules
+// with this file on a shared project: merge these paths with its existing rules.
+service cloud.firestore { match /databases/{database}/documents {
+ match /cms_entries/{id} {allow read,write:if false;}
+ match /cms_state/{id} {allow read,write:if false;}
+ match /cms_staff/{id} {allow read,write:if false;}
+ match /cms_audit/{id} {allow read,write:if false;}
+ match /cms_public/{id} {allow read:if true;allow write:if false;}
+ match /cms_email_jobs/{id} {allow read,write:if false;}
+ match /cms_email_events/{id} {allow read,write:if false;}
+ match /cms_received_email/{id} {allow read,write:if false;}
+ match /cms_booking_links/{id} {allow read,write:if false;}
+ match /cms_media_uploads/{id} {allow read,write:if false;}
+ match /cms_rate_limits/{id} {allow read,write:if false;}
+}}

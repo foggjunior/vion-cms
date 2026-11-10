@@ -1,3 +1,4 @@
+import {documentAssets,keyOf,DEFINITIONS} from '../../review/model.js';
 // Record factories, form conversion and reference helpers shared by the UI and the repositories.
 import { newId } from './format.js';
 import { SITE_KIND_LABELS, editorHref, siteAssetRefs, siteRecordTitle } from './site.js';
@@ -24,7 +25,7 @@ export function newRecord(kind, { id = newId(), now = new Date().toISOString(), 
   const base = { id, kind, title, slug: '', status: 'draft', createdAt: now, updatedAt: now, version: 1, schemaVersion: 1, cover: null, gallery: [], seo: emptySeo() };
   if (kind === 'destination') return { ...base, internalName: '', displayName: '', overview: '', wildlife: '', activities: [], bestTime: '', travelTips: [] };
   if (kind === 'accommodation') return {
-    ...base, destinationId: null, noDestinationReason: '', type: '', standard: '', setting: 'unspecified', description: '',
+    ...base, destinationId: null, locationName: '', noDestinationReason: '', type: '', standard: '', setting: 'unspecified', description: '',
     amenities: [], activities: [], publicPhone: '', publicPhoneVisible: false, website: '', publicPageEnabled: true
   };
   if (kind === 'tour') return {
@@ -110,7 +111,7 @@ export function formToRecord(form) {
     integerField('order', { label: 'Order', optional: true });
   }
   if (record.kind === 'accommodation') {
-    for (const key of ['type', 'standard', 'publicPhone', 'website']) record[key] = String(record[key] || '').trim();
+    for (const key of ['type', 'standard', 'publicPhone', 'website', 'locationName']) record[key] = String(record[key] || '').trim();
     record.amenities = cleanList(record.amenities);
     record.activities = cleanList(record.activities);
     record.destinationId = record.destinationId || null;
@@ -127,6 +128,7 @@ export function formToRecord(form) {
     record.itinerary = (record.itinerary || []).map((day, index) => ({
       id: day.id, dayNumber: index + 1, title: String(day.title || '').trim(), description: String(day.description || '').trim(),
       destinationIds: uniqueIds(day.destinationIds), accommodationIds: uniqueIds(day.accommodationIds),
+      ...(day.accommodationRooms?{accommodationRooms:day.accommodationRooms.filter(r=>(day.accommodationIds||[]).includes(r.accommodationId)).map(r=>({accommodationId:r.accommodationId,roomId:r.roomId,roomName:String(r.roomName||'').trim()}))}:{}),
       meals: cleanList(day.meals), activities: cleanList(day.activities)
     }));
     record.pricing = cleanPricing(form.pricing);
@@ -250,6 +252,7 @@ export function dependentsOf(id, ctx) {
 // Every working draft and published snapshot (content, site settings and team profiles) that uses an asset.
 export function assetUsage(assetId, ctx) {
   const usage = [];
+  for(const env of ctx.reviewRecords||[])for(const [r,where] of [[env.record,'working draft'],[env.published,'published snapshot']])if(r&&documentAssets(r).includes(assetId)){const key=keyOf(env.kind);usage.push({recordId:env.id,kind:env.kind,title:r.title,where,role:'image',label:(DEFINITIONS[key]?.single||'Content')+' “'+r.title+'”',href:'#/'+key+'/'+env.id});}
   const add = (kind, recordId, title, where, role) => usage.push({ recordId, kind, title, where, role, label: `${KIND_LABELS[kind] || SITE_KIND_LABELS[kind]} “${title}”`, href: editorHref(kind, recordId) });
   for (const env of ctx.records.values()) {
     for (const ref of assetRefs(env.record)) if (ref.assetId === assetId) add(env.kind, env.id, env.record.title, 'working draft', ref.role);

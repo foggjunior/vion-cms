@@ -1,3 +1,4 @@
+import {addAccommodation,chooseTourRooms} from '../operations/accommodation-dialog.js';
 import {tourCostSection} from '../operations/editor-sections.js';
 // Tours module. Most tour fields are inferred (B1); taxonomies are managed terms awaiting definitions (B4);
 // pricing is limited to price-on-request or an explicit manual "from" price until the price model (B2/B3) is
@@ -93,6 +94,8 @@ function itinerary(ed) {
         ed.text(`${base}.description`, { label: 'Description', required: 'publish', multiline: true, rows: 4 }),
         ed.relations(`${base}.destinationIds`, { legend: 'Destinations this day (optional)', kind: 'destination', noun: 'destination' }),
         ed.relations(`${base}.accommodationIds`, { legend: 'Accommodation (optional alternatives)', kind: 'accommodation', noun: 'accommodation', hint: 'Several entries are shown as alternatives (“A or B”). Leave empty for camping or nights without a property record.' }),
+        ed.readOnly?null:h('div',{class:'btn-row'},button('Add accommodation',{onClick:async()=>{const saved=await addAccommodation({ws:ed.ws,ctx:ed.ctx,initial:{destinationId:day.destinationIds[0]||''},onEditing:ed.changed});if(!saved)return;ed.ctx.records.set(saved.accommodation.id,saved.accommodation);day.accommodationIds.push(saved.accommodation.id);if(saved.rate?.rooms?.[0]){const room=saved.rate.rooms[0];day.accommodationRooms=[...(day.accommodationRooms||[]),{accommodationId:saved.accommodation.id,roomId:room.id,roomName:room.name}];}ed.changed();repeater.render();}}),button('Choose room type',{onClick:()=>chooseTourRooms(ed,day)})),
+        (day.accommodationRooms||[]).length?h('p',{class:'field-hint'},'Room types: '+day.accommodationRooms.filter(r=>day.accommodationIds.includes(r.accommodationId)).map(r=>r.roomName).join(', ')):null,
         mealsField(ed, base, day),
         ed.list(`${base}.activities`, { label: 'Activities', noun: 'activity', placeholder: 'e.g. Afternoon game drive' }));
     }

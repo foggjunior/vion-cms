@@ -18,17 +18,19 @@ export class RepoError extends Error {
 // Every store that readContext() reads. Transactions that need the full context (content writes, media
 // deletion, site writes) use this scope so media usage covers settings and team profiles, and publication
 // checks see the published taxonomy.
-export const CONTEXT_STORES = Object.freeze([STORES.records, STORES.published, STORES.redirects, STORES.assets, STORES.assetBlobs, STORES.taxonomies, STORES.taxonomyPublished, STORES.siteRecords, STORES.sitePublished]);
+export const CONTEXT_STORES = Object.freeze([STORES.records, STORES.published, STORES.redirects, STORES.assets, STORES.assetBlobs, STORES.taxonomies, STORES.taxonomyPublished, STORES.siteRecords, STORES.sitePublished, STORES.meta]);
 
 export async function readContext(tx, validator, siteValidator = null) {
   const store = name => tx.objectStore(name);
-  const [records, published, redirects, assets, blobKeys, taxonomies, taxonomyPublication, siteRecords, sitePublished] = await Promise.all([
+  const [records, published, redirects, assets, blobKeys, taxonomies, taxonomyPublication, siteRecords, sitePublished, metaRows] = await Promise.all([
     request(store(STORES.records).getAll()), request(store(STORES.published).getAll()), request(store(STORES.redirects).getAll()),
     request(store(STORES.assets).getAll()), request(store(STORES.assetBlobs).getAllKeys()), request(store(STORES.taxonomies).getAll()),
     request(store(STORES.taxonomyPublished).get(TAXONOMY_PUBLICATION_ID)),
-    request(store(STORES.siteRecords).getAll()), request(store(STORES.sitePublished).getAll())
+    request(store(STORES.siteRecords).getAll()), request(store(STORES.sitePublished).getAll()), request(store(STORES.meta).getAll())
   ]);
-  return makeContext({ records, published, redirects, assets, blobKeys, taxonomies, taxonomyPublication: taxonomyPublication || null, siteRecords, sitePublished, validator, siteValidator });
+  const ctx=makeContext({ records, published, redirects, assets, blobKeys, taxonomies, taxonomyPublication: taxonomyPublication || null, siteRecords, sitePublished, validator, siteValidator });
+  ctx.reviewRecords=metaRows.filter(e=>e.key.startsWith('review-document:')).map(e=>e.value);
+  return ctx;
 }
 
 export function createContentRepository({ db, validator, siteValidator = null, events, clock = () => new Date().toISOString(), newId = () => crypto.randomUUID(), faults = null }) {

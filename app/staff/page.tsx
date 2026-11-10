@@ -1,0 +1,2 @@
+import {redirect} from 'next/navigation';import {requireActor} from '../../server/auth.mjs';import StaffEditor from './staff-editor';
+export const dynamic='force-dynamic';export default async function Staff(){let actor;try{actor=await requireActor()}catch{redirect('/login')}if(actor.role!=='admin')return <main className="p-8">Administrator access is required. <a href="/workspace" className="underline">Back to workspace</a></main>;return <StaffEditor/>}

@@ -1,3 +1,65 @@
+# 9 November 2026 — collapsible daily costs and configurable profit
+
+Implemented daily cost open/close controls, removed the profit-base column, simplified charging labels, added Per day, separated adult/child automatic quantities from manual room/vehicle counts, and placed the all-day cost/profit/grand-total summary before the guest introduction. Profit rules can target accommodation, individual cost groups or all itinerary costs, with overlap protection. Existing quotations keep their original calculation unless edited; guest projection uses the selling grand total only.
+
+See [DAILY_COSTS_AND_PROFIT.md](DAILY_COSTS_AND_PROFIT.md). Checks passed: **56 server tests, 24 daily-cost browser checks, 25 inline-accommodation browser checks, 94 original storage/validation checks**. All used isolated test storage/static servers. No environment files, credential files or live/staging databases were accessed; no Next build/dev command, commit, push or deployment was run.
+
+# 9 November 2026 — inline accommodation workflow
+
+Implemented owner-requested accommodation capture inside quotations, itinerary cost sheets and tour-package days. Simple accommodation details, shared media, room categories/general STO, atomic reusable-library saves and subsequent selection are covered. Removed the duplicated left-sidebar account area while retaining the top-right account menu.
+
+See [INLINE_ACCOMMODATIONS.md](INLINE_ACCOMMODATIONS.md). Current verification: **45 server tests, 25 isolated browser workflow checks, and 94 original preview storage/validation tests passed**. No environment files or real database services were accessed. No Next build/dev command was run because it would load owner-protected environment files. Restart the application yourself to load the generated update. No commit, push or deployment was made.
+
+# 7 November 2026 — cloud server implementation
+
+The approved preview now has an implemented Next.js 16 / Tailwind application using Firebase Authentication and Firestore repositories, signed Cloudinary uploads, Resend job processing and verified inbound/delivery webhooks. The owner selected a **new staging Firebase project**. Credentials and project ID are not yet configured; the live site remains untouched.
+
+Read [CLOUD_IMPLEMENTATION.md](CLOUD_IMPLEMENTATION.md) for architecture, capabilities and storage limits, and [STAGING_SETUP.md](STAGING_SETUP.md) for setup and the connected acceptance steps. The approved editor UI is reused as native modules behind the authenticated Next route; new account/integration screens use React/Tailwind. This is not described as a complete React rewrite or a completed production release.
+
+Final local verification:
+
+- Next production build passed (all application routes compiled).
+- 34 server/domain/policy tests passed.
+- 52 cloud transport/browser contract checks passed in Chrome, using the real execution pipeline with isolated in-memory persistence. Shared saves across separate browsers, all tested screens, approved editor saves, no browser database, and desktop/phone navigation passed.
+- 22 real Next HTTP/login/access checks passed, including signed-upload endpoint access denials.
+- 94 original browser-preview unit/storage/validation tests passed in Chrome.
+
+No authenticated Firebase/Cloudinary/Resend provider test, live email, rules deployment, content migration, website cutover, Git commit, push or deployment was performed. Provider-connected checks require the staging setup. Java is not installed, so a full Firebase emulator test was not run. Existing reports below describe historical work and must not be read as evidence of the new integrations having been tested live.
+
+## Complete local review build — 6 November 2026
+
+This is the current status; earlier sections below describe historical phases.
+
+Completed the remaining visible pages: Blog Posts/Add Post/Categories, Users (internal staff directory), Gallery (shared media library), Migration Posts/Add Post, Giving Back stories/profiles, Top Itineraries, plus Content pages/experiences/FAQs/navigation and Settings reports/activity/backup/redirects/guide. Account Profile is editable locally; End review session opens a resumable local screen.
+
+Applied the owner's 5 November reference layout: rounded frame, narrow white sidebar, pale canvas, three pastel real-data cards, booking chart, analysis links, recent-booking table and right-side cards. Vion logo and gold actions are preserved. Removed old dashboard fixtures/placeholder links. Thirteen visible sidebar groups now route to actual screens. The three previously removed CRM sections remain removed.
+
+Added typed page sections, explicit standard-page draft creation, search previews, published editorial website renderers, migration month selection, FAQ placements, header/footer menus, experience-to-booking context, staff directory and profile preferences. Shared media usage protection covers editorial drafts and snapshots. Catalogue/editorial route reservations are checked in both directions, including backup import.
+
+Data backup schema 3 supports the optional reviewVersion:1 extension (editorial records, snapshots, profile and activity). Import validates and commits the extension in the existing transaction. Older files retain current editorial records and their referenced media. Financial/customer data remains in the existing private operational backup flow. No IndexedDB version bump or deletion of existing data was required.
+
+### Final checks
+
+| Suite | Browser | Final result |
+| --- | --- | --- |
+| tests/run-headless.mjs | Chrome | 94 passed, 0 failed |
+| tests/e2e.mjs | Chrome, desktop and phone | 55 passed, 0 failed |
+| tests/review-e2e.mjs | Chrome, 1440px desktop and 390px phone | 97 assertions passed |
+| tests/operations-e2e.mjs | Chrome | 14 assertions passed |
+
+New tests include lifecycle/stale writes, category dependency, private staff publication rejection, month overlap, safe links, media protection, backup restore, older-file preservation, FAQ placements and cross-module route collisions. Browser checks visit every visible sidebar route and exercise page/blog/FAQ/migration/impact/foundation/experience/menu publication, profile, reports and mobile navigation. Costing, room STO and guest PDF downloads retain their previous verified behaviour.
+
+Screenshots of the final dashboard and representative phone pages were inspected in output/review-qa under the chat workspace. Tests used isolated profiles and temporary databases; user browser data was not modified. A test-dialog wait was corrected to retain its original element instead of accidentally following a replacement dialog. Tests were updated for intentional new navigation/card counts and working replacement pages; no application requirement was removed to obtain a pass.
+
+Project-authored Markdown files were updated/current-status linked; obsolete setup prompts replaced. Vendor license files were left unchanged. Added schemas/editorial.schema.json and start-local.cmd. README and docs/REVIEW_BUILD.md contain current launch/route instructions.
+
+### Release limits
+
+This completes the local review scope. It is not a shared/deployed production CMS. Staff role descriptions do not enforce permissions; general authentication/server storage, source-ID migration, real redirects, live publishing/cache invalidation and production rollout remain separate. Existing read-only Firebase booking connection still requires an authorised staff:true account and matching deployed rules; no live sign-in/read was performed here. Firefox, Safari and screen readers were not tested. No commit, push, deployment or change to the live website occurred.
+
+<!-- CURRENT_REVIEW_BUILD -->
+> Current as of 6 November 2026: the complete local review build and current route/backup rules are documented in [Review build](REVIEW_BUILD.md). Earlier phase-specific scope and test counts below are historical unless explicitly updated.
+
 # Implementation status
 
 Updated 29 October 2026. Functional local prototype of the **Destinations, Accommodations and Tours** modules

@@ -1,15 +1,5 @@
-# Component boundary
+> 7 November 2026: the new server application is documented in [Cloud implementation](../../docs/CLOUD_IMPLEMENTATION.md). This document retains the approved browser-preview/history context.
 
-Reusable, accessible UI building blocks. User text is only ever inserted as text nodes (`dom.js` `h()`), and URL
-attributes pass through an allowlist.
+# Shared UI components
 
-- `dom.js`, `icons.js` — element builder, icons, live-region announcements, buttons.
-- `fields.js` — labelled inputs with hint and error slots (`aria-describedby`, `aria-invalid`).
-- `tabs.js` — WAI-ARIA tabs (arrow keys, Home/End); the tab list label is configurable.
-- `repeater.js` — ordered repeaters with Move up/down/Remove buttons, focus retention and announcements;
-  string lists built on it.
-- `relation-picker.js` — filterable many-to-many picker that keeps draft/archived/missing references visible.
-- `media.js`, `media-picker.js` — cover/gallery/share-image fields (the single-image field is reused for portraits
-  and the settings sharing image via `idPath`, labels and optional caption/alt), object-URL scope (revoked on view
-  close), upload + library picker dialog.
-- `dialog.js`, `feedback.js` — modal `<dialog>` confirmations, toasts, status badges, notices.
+Accessible fields, safe text/URL DOM helpers, dialogs, repeaters, status feedback and media controls support the complete local CMS. Existing catalogue editors and the new review editors reuse these components. layout.css applies the reference-inspired shell and responsive styling; modules.css retains component behaviour. See ../../docs/REVIEW_BUILD.md.

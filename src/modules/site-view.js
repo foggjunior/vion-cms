@@ -1,3 +1,5 @@
+import {reviewPublic} from '../review/public.js';
+import {createReviewRepository} from '../review/repository.js';
 // Local preview site: shows ONLY published snapshots. This is what "publish" means in this prototype —
 // visibility here, never deployment to the live website. Published site settings provide the company summary
 // and footer (or an explicit "no published settings" state); the team grid follows the published lineup;
@@ -29,13 +31,16 @@ export async function createSiteView({ app, path, params = new URLSearchParams()
   const scope = new MediaUrlScope(ws.media);
   const linkFor = ref => (ref.visible && ref.route && (ref.kind !== 'accommodation' || ref.record.publicPageEnabled !== false) ? `#/site${ref.route}` : null);
   const published = [...ctx.published.values()];
+  const editorial=await createReviewRepository(ws).list();
+  const reviewContent=await reviewPublic(ws,path,scope);
+  const publishedMenus=editorial.filter(e=>e.kind==='menu'&&e.published);
   const settings = ctx.sitePublished.get(SETTINGS_ID)?.snapshot || null;
   const siteOpts = { scope, assets: ctx.assets };
-  const footer = () => h('div', { class: 'site-section' }, h('h2', null, 'Footer'), settings ? footerPreview(settings, siteOpts) : fallbackFooter());
+  const footer = () => h('div', { class: 'site-section' }, h('nav',{class:'review-public-nav'},publishedMenus.filter(e=>e.published.placement==='Footer').flatMap(e=>e.published.links.map(l=>h('a',{href:l.href.startsWith('/')?'#/site'+l.href:l.href},l.label)))),h('h2', null, 'Footer'), settings ? footerPreview(settings, siteOpts) : fallbackFooter());
   const frame = (...children) => h('div', { class: 'site-view' },
     h('div', { class: 'view-head' }, h('div', null, h('div', { class: 'eyebrow' }, 'LOCAL PREVIEW SITE'), h('h1', { tabindex: '-1' }, children.shift()),
       h('p', { class: 'view-intro' }, 'Only published snapshots appear here. This is not the live website and nothing is deployed.'))),
-    toolNav('site'), ...children, footer());
+    toolNav('site'), h('nav',{class:'review-public-nav'},['/blog','/faqs','/experiences','/tanzania-migration','/give-back'].map(path=>h('a',{href:'#/site'+path},({'/blog':'Journal','/faqs':'FAQs','/experiences':'Experiences','/tanzania-migration':'Migration','/give-back':'Giving back'})[path])),publishedMenus.filter(e=>e.published.placement!=='Footer').flatMap(e=>e.published.links.map(l=>h('a',{href:l.href.startsWith('/')?'#/site'+l.href:l.href},l.label)))), ...children, footer());
   const result = (el, title) => ({ el, title, breadcrumb: 'Local preview site', mounted() { el.querySelector('h1').focus({ preventScroll: true }); }, destroy() { scope.revokeAll(); } });
   const team = () => publishedTeam(ctx).map(pub => ({ member: pub.snapshot, href: `#/site/team/${pub.id}` }));
   const teamEmpty = 'No team profiles are published and visible in the published team order.';
@@ -48,7 +53,8 @@ export async function createSiteView({ app, path, params = new URLSearchParams()
     const destinations = published.filter(p => p.kind === 'destination').sort((a, b) => compareOptionalNumber('order')(env(a), env(b)) || byTitle(a, b));
     const accommodations = published.filter(p => p.kind === 'accommodation' && publicPage(p)).sort(byTitle);
     const dayTrips = published.filter(p => p.kind === 'dayTrip').sort((a, b) => compareDayTrips(a.snapshot, b.snapshot));
-    return result(frame('Published content',
+    return result(frame('Published content',reviewContent,
+      h('section',{class:'site-section'},h('h2',null,'Website pages'),h('div',{class:'btn-row'},editorial.filter(e=>e.published&&e.kind==='page').map(e=>linkButton(e.published.title,'#/site'+e.published.path)))),
       h('section', { class: 'site-section' }, h('h2', null, 'Company and contact'),
         settings ? companySummary(settings, siteOpts) : h('div', { class: 'empty-state panel' }, h('span', null, icon('settings')), h('strong', null, 'No published site settings'),
           h('p', null, 'Company and contact details appear here after Site settings are published locally. No business details are assumed.'), linkButton('Open Setting Options', '#/settings'))),
@@ -59,6 +65,10 @@ export async function createSiteView({ app, path, params = new URLSearchParams()
       group('Accommodations', accommodations, 'No published accommodations with an enabled public page.'),
       h('section', { class: 'site-section' }, h('h2', null, h('a', { href: '#/site/team' }, 'Team')), teamGrid(team(), { ...siteOpts, empty: teamEmpty }))), 'Local preview site');
   }
+
+  const catalogueKinds={'/tours':'tour','/destinations':'destination','/accommodations':'accommodation','/tours/zanzibar-trips':'tour','/tours/climbing-trips':'tour'};
+  if(catalogueKinds[path]){const kind=catalogueKinds[path];let entries=published.filter(p=>p.kind===kind&&publicPage(p));if(path.endsWith('zanzibar-trips'))entries=entries.filter(p=>p.snapshot.destinationIds?.some(id=>/zanzibar/i.test(ctx.records.get(id)?.record.title||'')));if(path.endsWith('climbing-trips'))entries=entries.filter(p=>/climb|trek|mountain/i.test(ctx.publishedTerms.get(p.snapshot.typeId)?.label||'')||p.snapshot.tagIds?.some(id=>/climb|trek/i.test(ctx.publishedTerms.get(id)?.label||'')));const list=h('div',{class:'card-grid'}),search=h('input',{class:'input',type:'search','aria-label':'Search catalogue',placeholder:'Search…'});const draw=()=>{const items=entries.filter(p=>p.snapshot.title.toLowerCase().includes(search.value.toLowerCase()));list.replaceChildren(...items.map(pub=>renderCard(pub.snapshot,{resolver,scope,href:'#/site'+pub.route})),items.length?null:h('p',null,'No published content matches.'));};search.addEventListener('input',draw);draw();return result(frame(kind==='tour'?'Tours':kind==='destination'?'Destinations':'Accommodations',reviewContent,search,list),'Catalogue preview');}
+  if(reviewContent&&path!==HUB_ROUTES.dayTrips)return result(frame('Website preview',reviewContent),'Website preview');
 
   if (path === HUB_ROUTES.dayTrips || path === `${HUB_ROUTES.dayTrips}/`) {
     const trips = published.filter(p => p.kind === 'dayTrip').map(p => p.snapshot).sort(compareDayTrips);
@@ -73,7 +83,7 @@ export async function createSiteView({ app, path, params = new URLSearchParams()
       : outcome.status === 'filtered'
         ? h('div', { class: 'empty-state panel' }, h('span', null, icon('search')), h('strong', null, `No published day trips are tagged “${outcome.tag.label}”`), linkButton('Show all day trips', dayTripHref()))
         : h('div', { class: 'empty-state panel' }, h('span', null, icon('map')), h('strong', null, 'No published day trips'), h('p', null, 'Day trips appear here once they are published locally.'));
-    return result(frame('Day trips',
+    return result(frame('Day trips',reviewContent,
       h('p', { class: 'muted small' }, `Public pattern ${HUB_ROUTES.dayTrips}${outcome.tag ? `?filter=${TAG_FILTER}&value=${outcome.tag.key}` : ''} · local preview address #/site${HUB_ROUTES.dayTrips}${outcome.tag ? `?filter=${TAG_FILTER}&value=${outcome.tag.key}` : ''}`),
       tags.length ? h('nav', { class: 'filter-chips', 'aria-label': 'Filter day trips by tag' }, chip('All day trips', dayTripHref(), outcome.status !== 'filtered'), tags.map(tag => chip(tag.label, dayTripHref(tag), outcome.tag?.id === tag.id))) : null,
       outcome.status === 'invalid-filter' ? notice('warning', outcome.message) : null,

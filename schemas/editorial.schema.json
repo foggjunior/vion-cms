@@ -1,0 +1,655 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vion editorial draft shapes, review extension version 1",
+  "description": "Structural documentation. Runtime semantics, publication minimums, links, references and exact routing rules are enforced by src/review/model.js and repository.js. This supplements the existing catalogue/site schemas.",
+  "oneOf": [
+    {
+      "title": "Blog post",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "blog"
+        },
+        "title": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "categoryId": {
+          "type": "string"
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "publishDate": {
+          "type": "string"
+        },
+        "excerpt": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "coverAssetId": {
+          "type": "string"
+        },
+        "imageAlt": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "seoTitle": {
+          "type": "string"
+        },
+        "seoDescription": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "categoryId",
+        "topics",
+        "publishDate",
+        "excerpt",
+        "body",
+        "coverAssetId",
+        "imageAlt",
+        "author",
+        "seoTitle",
+        "seoDescription"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Blog category",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "blogCategory"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "order": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "description",
+        "order"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Migration phase",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "migration"
+        },
+        "title": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "months": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "area": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "whatHappens": {
+          "type": "string"
+        },
+        "safariExperience": {
+          "type": "string"
+        },
+        "guideNotes": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "string"
+        },
+        "longitude": {
+          "type": "string"
+        },
+        "coverAssetId": {
+          "type": "string"
+        },
+        "imageAlt": {
+          "type": "string"
+        },
+        "order": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "months",
+        "area",
+        "body",
+        "whatHappens",
+        "safariExperience",
+        "guideNotes",
+        "latitude",
+        "longitude",
+        "coverAssetId",
+        "imageAlt",
+        "order"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Impact story",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "impact"
+        },
+        "title": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "programme": {
+          "type": "string"
+        },
+        "excerpt": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "publishDate": {
+          "type": "string"
+        },
+        "coverAssetId": {
+          "type": "string"
+        },
+        "imageAlt": {
+          "type": "string"
+        },
+        "seoTitle": {
+          "type": "string"
+        },
+        "seoDescription": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "programme",
+        "excerpt",
+        "body",
+        "publishDate",
+        "coverAssetId",
+        "imageAlt",
+        "seoTitle",
+        "seoDescription"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Foundation profile",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "foundation"
+        },
+        "title": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "excerpt": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "mission": {
+          "type": "string"
+        },
+        "programmes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "website": {
+          "type": "string"
+        },
+        "coverAssetId": {
+          "type": "string"
+        },
+        "imageAlt": {
+          "type": "string"
+        },
+        "seoTitle": {
+          "type": "string"
+        },
+        "seoDescription": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "excerpt",
+        "body",
+        "mission",
+        "programmes",
+        "website",
+        "coverAssetId",
+        "imageAlt",
+        "seoTitle",
+        "seoDescription"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "FAQ",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "faq"
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "placements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "order": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "body",
+        "placements",
+        "order"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Experience",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "experience"
+        },
+        "title": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "excerpt": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "pace": {
+          "type": "string"
+        },
+        "seasons": {
+          "type": "string"
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "text",
+                  "hero",
+                  "cta",
+                  "facts",
+                  "faq"
+                ]
+              },
+              "title": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "title",
+              "body",
+              "href"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "inclusions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "whatToBring": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "coverAssetId": {
+          "type": "string"
+        },
+        "imageAlt": {
+          "type": "string"
+        },
+        "seoTitle": {
+          "type": "string"
+        },
+        "seoDescription": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "slug",
+        "excerpt",
+        "body",
+        "location",
+        "format",
+        "pace",
+        "seasons",
+        "sections",
+        "inclusions",
+        "exclusions",
+        "whatToBring",
+        "coverAssetId",
+        "imageAlt",
+        "seoTitle",
+        "seoDescription"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Page",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "page"
+        },
+        "title": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "excerpt": {
+          "type": "string"
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "text",
+                  "hero",
+                  "cta",
+                  "facts",
+                  "faq"
+                ]
+              },
+              "title": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "title",
+              "body",
+              "href"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "coverAssetId": {
+          "type": "string"
+        },
+        "imageAlt": {
+          "type": "string"
+        },
+        "seoTitle": {
+          "type": "string"
+        },
+        "seoDescription": {
+          "type": "string"
+        },
+        "noindex": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "path",
+        "excerpt",
+        "sections",
+        "coverAssetId",
+        "imageAlt",
+        "seoTitle",
+        "seoDescription",
+        "noindex"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Menu group",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "menu"
+        },
+        "title": {
+          "type": "string"
+        },
+        "placement": {
+          "enum": [
+            "Header",
+            "Footer",
+            "Planning"
+          ]
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "href"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "order": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "placement",
+        "links",
+        "order"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "title": "Staff entry",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "staff"
+        },
+        "title": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "Administrator",
+            "Editor",
+            "Publisher",
+            "Sales",
+            "Guide"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "email",
+        "phone",
+        "role",
+        "notes",
+        "active"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

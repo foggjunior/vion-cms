@@ -1,3 +1,6 @@
+import {DEFINITIONS} from '../review/model.js';
+import {createReviewView} from '../review/views.js';
+import {createWorkspaceView} from '../review/workspace-views.js';
 import {createWebsiteConnectionView} from '../operations/website-view.js';
 import { createOperationsView } from '../operations/views.js';
 import { createBookingsView } from './bookings-view.js';
@@ -28,7 +31,8 @@ export const CONTENT_ROUTES = Object.freeze({
   'Activities / day trips': '#/day-trips', 'Add Activity': '#/day-trips/new', 'Taxonomies': '#/taxonomies',
   'Destinations List': '#/destinations', 'Add Destination': '#/destinations/new',
   'Accommodations List': '#/accommodations', 'Add Accommodation': '#/accommodations/new',
-  'Setting Options': '#/settings', 'Team': '#/team'
+  'Setting Options': '#/settings', 'Team': '#/team',
+  'Top Itineraries':'#/top-itineraries','Blog Posts':'#/blogs','Add Post':'#/blogs/new','Categories':'#/categories','Users List':'#/users','Gallery':'#/media','Migration Posts':'#/migration','Charity':'#/impact','Profiles':'#/foundations','Website pages':'#/pages','Experiences':'#/experiences','FAQs':'#/faqs','Navigation':'#/menus','Reports':'#/reports','Activity':'#/activity','Backup & import':'#/backup','Redirects':'#/redirects','Review guide':'#/help'
 });
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -44,10 +48,13 @@ export function parseRoute(hash) {
   const params = new URLSearchParams(cut === -1 ? '' : text.slice(cut + 1));
   const modules = 'tours|destinations|accommodations|day-trips';
   let m;
+  const reviewKeys=Object.keys(DEFINITIONS).join('|');
+  if((m=path.match(new RegExp(`^/(${reviewKeys})(?:/(new|${UUID}))?(?:/(preview))?$`,'i'))))return {type:'review',key:m[1],id:m[2]&&m[2]!=='new'?m[2]:null,mode:m[3]?'preview':m[2]?'editor':'list'};
+  if(['/profile','/activity','/reports','/help','/session-ended','/top-itineraries'].includes(path))return {type:'workspace-view',name:path.slice(1)};
   if (path === '/' || path === '/dashboard') return { type: 'dashboard' };
   if (path === '/bookings/connect') return {type:'website-connection'};
   if (path === '/bookings') return { type: 'bookings' };
-  if (path === '/bookings/new') return { type: 'bookings', edit: true };
+  if (path === '/bookings/new') return { type: 'bookings', edit: true, params };
   if ((m = path.match(new RegExp(`^/bookings/(${UUID})$`, 'i')))) return { type: 'bookings', id: m[1] };
   if (path === '/quotations') return params.get('booking') ? {type:'operation', mode:'quote', params} : {type:'operation',mode:'list',params};
   if (path === '/quotations/new') return {type:'operation',mode:'quote',params};
@@ -77,8 +84,10 @@ export function parseRoute(hash) {
 
 export function createView(route, app) {
   switch (route.type) {
+    case 'review': return createReviewView({app,key:route.key,id:route.id,mode:route.mode});
+    case 'workspace-view':return createWorkspaceView({app,type:route.name});
     case 'website-connection': return createWebsiteConnectionView({app});
-    case 'bookings': return createBookingsView({ app, id: route.id, edit: route.edit });
+    case 'bookings': return createBookingsView({ app, id: route.id, edit: route.edit, params:route.params });
     case 'operation': return createOperationsView({ app, mode:route.mode, id:route.id, entityKind:route.entityKind, params:route.params });
     case 'list': return createListView({ def: route.def, app, params: route.params });
     case 'editor': return createEditorView({ def: route.def, id: route.id, app });

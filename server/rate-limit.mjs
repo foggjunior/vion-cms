@@ -1,0 +1,2 @@
+import {createHash} from 'node:crypto';import {admin} from './firebase.mjs';
+export async function rateLimit(key,max=10,windowMs=3600000){const id=createHash('sha256').update(key).digest('hex'),ref=admin().db.collection('cms_rate_limits').doc(id);await admin().db.runTransaction(async tx=>{const old=(await tx.get(ref)).data(),now=Date.now(),fresh=!old||old.expiresAt<now,count=fresh?1:old.count+1;if(count>max)throw Object.assign(Error('Too many requests. Try again later.'),{status:429});tx.set(ref,{count,expiresAt:fresh?now+windowMs:old.expiresAt});});}

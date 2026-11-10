@@ -70,7 +70,7 @@ async function save(target = page) {
   await target.waitForFunction(() => ['saved', 'error', 'idle'].includes(document.querySelector('.save-status')?.dataset.state), null, { timeout: 15000 });
 }
 async function tab(name) { await page.getByRole('tab', { name, exact: false }).first().click(); }
-async function dialogButton(name) { const modal=page.locator('dialog[open]').last(); await modal.getByRole('button', { name, exact: true }).click(); await modal.waitFor({state:'detached'}); }
+async function dialogButton(name) { const modal=page.locator('dialog[open]').last(),element=await modal.elementHandle(); await modal.getByRole('button', { name, exact: true }).click(); await page.waitForFunction(el=>!el.isConnected,element); }
 async function makeImage(width, height, type = 'image/png') {
   const b64 = await page.evaluate(async ({ width, height, type }) => {
     const c = new OffscreenCanvas(width, height);
@@ -126,13 +126,13 @@ const text = sel => page.locator(sel).innerText();
 
 // ---- 1. Shell ----
 await page.goto(`${base}/`);
-await check('Dashboard renders with gold branding, logo and 12 navigation groups', async () => {
+await check('Dashboard renders with gold branding, logo and 13 navigation groups', async () => {
   expect(await page.locator('h1#pageTitle').textContent() === 'Dashboard', 'dashboard heading missing');
-  expect(await page.locator('.nav-toggle').count() === 12, `expected 12 groups, got ${await page.locator('.nav-toggle').count()}`);
+  expect(await page.locator('.nav-toggle').count() === 13, `expected 13 groups, got ${await page.locator('.nav-toggle').count()}`);
   expect(await page.locator('.brand img[src="assets/logo-dark.svg"]').count() === 1, 'logo missing');
   const gold = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--gold').trim());
   expect(gold === '#aa791b', `gold token changed: ${gold}`);
-  expect(await page.locator('.stat').count() === 4 && await page.locator('.quick-action').count() === 6, 'dashboard widgets missing');
+  expect(await page.locator('.stat').count() === 3 && await page.locator('.quick-action').count() === 6, 'dashboard widgets missing');
 });
 await check('Sidebar list/Add entries open the working modules', async () => {
   const pairs = [['Tour Packages', 'Tours List', '#/tours', 'Tours'], ['Tour Packages', 'Add Tour', '#/tours/new', 'New tour'], ['Destinations', 'Destinations List', '#/destinations', 'Destinations'], ['Destinations', 'Add Destination', '#/destinations/new', 'New destination'], ['Accommodations', 'Accommodations List', '#/accommodations', 'Accommodations'], ['Accommodations', 'Add Accommodation', '#/accommodations/new', 'New accommodation']];
@@ -145,20 +145,11 @@ await check('Sidebar list/Add entries open the working modules', async () => {
   }
 });
 // Phase 3 wired Activities / day trips and Add Activity (previously placeholders) and added Taxonomies.
-await check('Other modules remain honest placeholders; Add Tour quick action opens the tour editor', async () => {
-  await open(`#/dashboard`);
-  await openNav(page, 'Users', 'Users List');
-  await page.locator('#modulePreview').waitFor({ state: 'visible', timeout: 3000 });
-  expect(/NOT BUILT IN THIS PROTOTYPE/.test(await text('#modulePreview')), 'placeholder wording');
-  await openNav(page, 'Blogs', 'Blog Posts');
-  await page.locator('#modulePreview h2', { hasText: 'Blog Posts' }).waitFor({ timeout: 3000 });
-  await open(`#/dashboard`);
-  await page.locator('.quick-action', { hasText: 'Add Tour' }).click();
-  await page.waitForSelector('#moduleRoot h1');
-  expect(await page.evaluate(() => location.hash) === '#/tours/new', 'quick action route');
-  await open(`#/dashboard`);
-  await page.locator('.quick-action', { hasText: 'New Booking' }).click();
-  await page.locator('#moduleRoot h1', {hasText:'Bookings'}).waitFor({timeout:3000});
+await check('Remaining modules open working screens and dashboard quick actions navigate correctly',async()=>{
+  await open('#/dashboard');await openNav(page,'Users','Users List');await page.getByRole('heading',{name:'Staff directory',exact:true}).waitFor();
+  await openNav(page,'Blogs','Blog Posts');await page.getByRole('heading',{name:'Blog posts',exact:true}).waitFor();
+  await open('#/dashboard');await page.locator('.quick-action',{hasText:'Add Tour'}).click();await page.waitForFunction(()=>location.hash==='#/tours/new');
+  await open('#/dashboard');await page.locator('.quick-action',{hasText:'New Booking'}).click();await page.getByRole('heading',{name:'New booking',exact:true}).waitFor();
 });
 
 // ---- 2. Destination ----
@@ -642,9 +633,9 @@ async function publishOrder() {
 
 await check('Settings submenu keeps Setting Options and adds Team; both open working screens; account Settings works', async () => {
   await open('#/dashboard');
-  expect(await page.locator('.nav-toggle').count() === 12, 'sidebar groups changed');
+  expect(await page.locator('.nav-toggle').count() === 13, 'sidebar groups changed');
   const settingsItems = await page.locator('.nav-group', { has: page.locator('.nav-toggle', { hasText: 'Settings' }) }).locator('.submenu button').allTextContents();
-  expect(JSON.stringify(settingsItems) === JSON.stringify(['Setting Options', 'Team']), JSON.stringify(settingsItems));
+  expect(settingsItems.includes('Setting Options')&&settingsItems.includes('Team')&&settingsItems.includes('Reports'),JSON.stringify(settingsItems));
   await openNav(page, 'Settings', 'Setting Options');
   await page.waitForSelector('#f-company-name');
   expect(await page.evaluate(() => location.hash) === '#/settings', 'Setting Options route');

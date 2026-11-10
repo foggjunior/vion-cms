@@ -1,3 +1,16 @@
 
 # Local Firebase web configuration; never put service credentials in this file.
 config/firebase-public.local.json
+
+# Next.js cloud application
+node_modules/
+.next/
+.env*
+!.env.example
+public/approved/
+.next-cloud/
+*.tsbuildinfo
+
+public/assets/
+
+output/

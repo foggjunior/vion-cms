@@ -1,3 +1,8 @@
+> 7 November 2026: the new server application is documented in [Cloud implementation](CLOUD_IMPLEMENTATION.md). This document retains the approved browser-preview/history context.
+
+<!-- CURRENT_REVIEW_BUILD -->
+> Current as of 6 November 2026: the complete local review build and current route/backup rules are documented in [Review build](REVIEW_BUILD.md). Earlier phase-specific scope and test counts below are historical unless explicitly updated.
+
 # Vion CMS — first functional modules
 Date: 28 October 2026. Status: proposed replacement behaviour, authorised for local implementation.
 

@@ -1,3 +1,4 @@
+import {createReviewRepository} from '../review/repository.js';
 import {downloadBookingPDF} from '../operations/pdf.js';
 import {h,button,linkButton} from '../components/dom.js';
 import {fieldWrap,textControl,selectControl} from '../components/fields.js';
@@ -8,7 +9,7 @@ function download(value){const url=URL.createObjectURL(new Blob([JSON.stringify(
 const date=v=>v?new Date(v).toLocaleString('en-GB',{timeZone:'Africa/Dar_es_Salaam'}):'Not supplied';
 const duration=b=>b.arrivalDate&&b.departureDate?Math.round((Date.parse(b.departureDate)-Date.parse(b.arrivalDate))/86400000)+1:null;
 function details(b){const rows=[['Full Name',b.fullName],['Email',b.email],['Phone',b.phone],['Adults',b.adults],['Kids',b.kids],['Arrival Date',b.arrivalDate],['Departure Date',b.departureDate],['Duration (Days)',duration(b)],['Type of Tour',b.tourType],['Requested Tour',b.tourName],['Safari Ideas',b.safariIdeas],['Additional Details',b.additionalDetails],['Status',b.status],['Source',b.source],['Website tour reference',b.externalTourId],['Received',date(b.receivedAt)]];return h('div',null,h('dl',{class:'ops-details'},rows.flatMap(([k,v])=>[h('dt',null,k),h('dd',null,v===0?'0':v||'Not supplied')])),b.websiteContext?h('details',null,h('summary',null,'Website planning context'),h('pre',{style:'white-space:pre-wrap;overflow-wrap:anywhere'},JSON.stringify(b.websiteContext,null,2))):null);}
-export async function createBookingsView({app,id=null,edit=false}){
+export async function createBookingsView({app,id=null,edit=false,params=new URLSearchParams()}){
  const ws=await app.workspace(),repo=createBookingsRepository(ws);
  let dirty=false,saving=false,alive=true;
  const root=h('section',{class:'panel'}),message=h('p',{role:'status','aria-live':'polite'});
@@ -16,6 +17,7 @@ export async function createBookingsView({app,id=null,edit=false}){
  const header=(title)=>h('div',{class:'ops-heading'},h('h1',null,title),notice('info','Local operational register only. Use Connect website for staff-authenticated read-only imports, or enter a received request manually. These details are not published to the local site.'));
  if(id||edit){
  let b=id?await repo.get(id):newBooking();
+ if(!id&&params.get('experience')){const experience=(await createReviewRepository(ws).list('experiences')).find(e=>e.published?.slug===params.get('experience'));if(experience)b.safariIdeas='Include: '+experience.published.title;}
  if(!b){root.append(header('Booking not found'),linkButton('Back to bookings','#/bookings'));return view;}
  const drawDetails=()=>{dirty=false;root.replaceChildren(header('Booking Details'),message,details(b),h('div',{class:'ops-actions'},button('Edit booking',{onClick:drawForm}),button('Generate PDF',{onClick:async()=>{try{await downloadBookingPDF(b);}catch(e){message.textContent=e.message;}}}),linkButton('Quotation',`#/quotations?booking=${b.id}`),linkButton('Back to bookings','#/bookings')),notice('info','Generate PDF downloads the booking details. Quotation creates a separate editable itinerary and costing copy.'));};
  async function drawForm(){

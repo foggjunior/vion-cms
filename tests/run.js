@@ -1,3 +1,4 @@
+import './review.test.js';
 import './website-bookings.test.js';
 import './costing.test.js';
 import './booking.test.js';

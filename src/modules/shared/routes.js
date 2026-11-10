@@ -1,3 +1,4 @@
+import {routeOf as reviewRouteOf} from '../../review/model.js';
 // Slug and local route rules. Route prefixes are a prototype assumption (C2 legacy slugs unresolved);
 // they never alter live website URLs. Redirects are planned local entries, not real server redirects.
 //
@@ -70,6 +71,7 @@ export function routeClaims(ctx) {
   for (const redirect of ctx.redirects || []) {
     add(redirect.from, { recordId: redirect.recordId, kind: redirect.kind, title: ctx.records.get(redirect.recordId)?.record.title || 'unknown record', reason: 'planned redirect source' });
   }
+  for(const env of ctx.reviewRecords||[]){const claim={recordId:'review:'+env.id,kind:env.kind,title:env.record.title,status:env.status,reason:'editorial route'};add(reviewRouteOf(env.kind,env.record),claim);for(const route of env.routeHistory||[])add(route,claim);}
   return claims;
 }
 

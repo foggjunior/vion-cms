@@ -3,11 +3,11 @@ import {mkdirSync} from 'node:fs';
 const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch({channel:'chrome'}),page=await browser.newPage({viewport:{width:1440,height:1000}});
 const base='http://127.0.0.1:5173',out=process.env.OPS_TEST_OUT;
-mkdirSync(out,{recursive:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+mkdirSync(out,{recursive:true});const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error(e.stack||e.message);});page.on('dialog',d=>d.accept());
 async function ready(route){await page.goto(base+'/'+route);await page.locator('#moduleRoot[data-ready="true"]').waitFor();}
 function assert(v,m){if(!v)throw new Error(m);console.log('PASS',m);}
 try{
- await page.goto(base);await page.waitForFunction(()=>window.__vionApp);assert(await page.locator('nav .nav-toggle').count()===12,'12 sidebar groups after requested removals');
+ await page.goto(base);await page.waitForFunction(()=>window.__vionApp);assert(await page.locator('nav .nav-toggle').count()===13,'13 sidebar groups with working Content section');
  await ready('#/bookings/new');await page.getByLabel(/^Full name/).fill('Example Traveller');await page.getByLabel('Email',{exact:true}).fill('guest@example.com');await page.getByLabel('Adults',{exact:true}).fill('2');await page.getByRole('button',{name:'Save booking',exact:true}).click();await page.waitForURL(/#\/bookings\/[a-f0-9-]+$/);await page.getByRole('heading',{name:'Booking Details'}).waitFor();assert(await page.getByText('Example Traveller',{exact:true}).count()>0,'Booking saved and detail page rendered');
  await page.getByRole('link',{name:'Quotation',exact:true}).click();await page.locator('#moduleRoot[data-ready="true"]').waitFor();assert(await page.getByLabel('Customer full name',{exact:true}).inputValue()==='Example Traveller','Quotation prefilled from booking');
  await page.getByRole('button',{name:'Add itinerary day',exact:true}).click();await page.getByLabel('Destination name',{exact:true}).fill('Arusha');await page.getByLabel('Accommodation name',{exact:true}).fill('Example Lodge');await page.getByLabel('Daily itinerary narrative',{exact:true}).fill('Arrive in Arusha and settle into your lodge.');

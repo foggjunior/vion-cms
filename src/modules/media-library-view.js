@@ -94,14 +94,14 @@ export async function createMediaLibraryView({ app }) {
         h('p', { class: 'view-intro' }, 'One local asset library shared by destinations, accommodations, tours, site settings (logos, sharing image) and team portraits. Images are stored only in this browser.')),
       h('div', null, fileInput, h('label', { for: 'library-upload', class: 'btn btn-primary' }, 'Upload images'))),
     toolNav('media'),
-    notice('info', `JPEG, PNG and WebP up to ${formatBytes(MEDIA_LIMITS.maxBytes)}; SVG uploads are rejected. Files are checked by content and must decode. Images narrower than ${MEDIA_LIMITS.lowResolutionWidth}px get a warning only. Referenced images cannot be deleted. This is a local prototype library; the existing Gallery section’s behaviour (E1) is unconfirmed.`),
+    notice('info', `JPEG, PNG and WebP up to ${formatBytes(MEDIA_LIMITS.maxBytes)}; SVG uploads are rejected. Files are checked by content and must decode. Images narrower than ${MEDIA_LIMITS.lowResolutionWidth}px get a warning only. Referenced images cannot be deleted. This is the shared local gallery for every content module.`),
     missing ? notice('warning', `${missing} image${missing === 1 ? ' has' : 's have'} details but no file in this browser (usually after importing a data backup without its media backup). Import the media backup on the Backup & import page.`) : null,
     uploadResults,
     h('div', { class: 'list-toolbar panel' }, h('div', { class: 'field' }, h('label', { for: 'library-search', class: 'field-label' }, 'Search'), search)),
     grid);
   render();
   return {
-    el, title: 'Media library', breadcrumb: 'Content tools / Media library',
+    el, title: 'Media library', breadcrumb: 'Content tools / Media library',navGroup:'Media Library',navLabel:'Gallery',
     mounted() { el.querySelector('h1').focus({ preventScroll: true }); },
     destroy() { scope.revokeAll(); }
   };

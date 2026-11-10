@@ -1,3 +1,10 @@
+> Current daily-cost and profit workflow: [DAILY_COSTS_AND_PROFIT.md](DAILY_COSTS_AND_PROFIT.md), updated 9 November 2026. Older descriptions below are historical.
+
+> 7 November 2026: the new server application is documented in [Cloud implementation](CLOUD_IMPLEMENTATION.md). This document retains the approved browser-preview/history context.
+
+<!-- CURRENT_REVIEW_BUILD -->
+> Current as of 6 November 2026: the complete local review build and current route/backup rules are documented in [Review build](REVIEW_BUILD.md). Earlier phase-specific scope and test counts below are historical unless explicitly updated.
+
 # Costing, bookings and quotations
 
 Implemented 2 November 2026 in the local buildless CMS. No commit, push, deployment, live Firebase sign-in, live booking read or website write was performed.

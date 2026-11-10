@@ -34,6 +34,7 @@ function location(ed) {
         onChange: () => ed.refreshSection('location')
       }),
       selected && !ed.ctx.published.has(selected.id) ? notice('warning', `“${selected.record.title}” is ${selected.record.status === 'archived' ? 'archived' : 'not published'}. Publish it before publishing this accommodation.`) : null,
+      ed.text('locationName', {label:'Location name (if not in destinations)',hint:'A free-text location captured while preparing an itinerary.'}),
       ed.model.destinationId ? null : ed.text('noDestinationReason', {
         label: 'Reason for no destination', multiline: true, rows: 3, required: 'publish',
         hint: 'Required to publish without a destination — for example a mobile camp. Do not split or rewrite imported camp narratives automatically (A4).'
@@ -76,7 +77,7 @@ export const accommodationModule = {
       label: 'Destination',
       cell: (env, ctx) => {
         const id = env.record.destinationId;
-        if (!id) return env.record.noDestinationReason ? 'None (reason given)' : 'None';
+        if (!id) return env.record.locationName || (env.record.noDestinationReason ? 'None (reason given)' : 'None');
         const dest = ctx.records.get(id);
         return dest ? `${dest.record.title}${ctx.published.has(id) ? '' : dest.record.status === 'archived' ? ' (archived)' : ' (draft)'}` : 'Missing record';
       }

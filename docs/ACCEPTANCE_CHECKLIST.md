@@ -1,3 +1,6 @@
+<!-- CURRENT_REVIEW_BUILD -->
+> Current as of 6 November 2026: the complete local review build and current route/backup rules are documented in [Review build](REVIEW_BUILD.md). Earlier phase-specific scope and test counts below are historical unless explicitly updated.
+
 # Acceptance checklist
 
 Status 29 October 2026: all items (phases 1, 2 and 3) verified in Chromium-based browsers. Evidence, test counts and limitations are in docs/IMPLEMENTATION_STATUS.md.
@@ -77,3 +80,67 @@ Use meaningful repository/validation tests for persistence, publication snapshot
 - [x] Messages/Email Subscribers/Vehicles removed from sidebar; text strengthened.
 - [ ] Live staff sign-in and Firestore permissions/import verification (requires authorised user).
 - [ ] Explicit live-tour-ID to local-tour-ID catalogue mapping/migration.
+
+## Complete local review acceptance — 6 November 2026
+
+- [x] Reference-inspired desktop and phone layout; Vion logo/gold retained.
+- [x] Actual local dashboard records; no sample revenue/bookings remain.
+- [x] Every visible sidebar link opens a working screen; no remaining sidebar placeholders.
+- [x] Blog/category, migration, impact, foundation, FAQ, experience, page and menu workflows.
+- [x] Shared media selection/alt text and deletion protection for drafts/published snapshots.
+- [x] Independent draft/published content, archive/restore, duplicates, filtering, pagination and stale-save rejection.
+- [x] Month, FAQ-placement, header/footer menu and experience-booking public-preview behaviour.
+- [x] Top itineraries, staff directory, profile preferences, activity, reports/CSV and review guide.
+- [x] Backups restore editorial content; old files retain it; route/media conflicts reject safely.
+- [x] Existing catalogue, booking, costing, room rates and PDF flows verified.
+- [x] All project-authored Markdown refreshed; vendor licenses preserved.
+- [x] Final Chrome checks: 94 unit, 55 existing E2E, 97 review assertions, 14 operational assertions pass.
+- [ ] Production identity/permission enforcement, shared storage and live publishing (outside local review scope).
+- [ ] Live staff-authenticated booking import and catalogue-ID migration verification.
+
+
+## 7 November 2026 — server implementation
+
+- [x] Next.js production build and Tailwind-powered account/integration screens.
+- [x] Authenticated cloud repository transport for the approved content/operational screens.
+- [x] Server role checks, expected-version checks and atomic Firestore revision protocol implemented.
+- [x] Staff provisioning, queued invitations, access changes and last-administrator protection implemented.
+- [x] Cloudinary signed upload and server-side provider/byte/dimension verification implemented.
+- [x] Booking form-source sync, Resend outbox, signature-verified inbound/delivery handling implemented.
+- [x] Publication feed with private-data exclusion, historical 308 instructions and referenced media.
+- [x] Backup/migration tools, URL ledger and staging guide.
+- [x] 34 server tests, 52 isolated cloud-browser checks, 22 real HTTP/access checks and 94 original preview tests passed.
+- [ ] Configure the new staging Firebase project, Cloudinary and Resend.
+- [ ] Run actual provider-connected role, upload, email, webhook and booking-source checks.
+- [ ] Verify migrated source content, every legacy URL and guest quotation totals with the owner.
+- [ ] Wire and test the public website staging adapter, real redirects and metadata.
+- [ ] Production cutover/deployment.
+
+The unchecked items are release requirements. In-memory contract tests do not verify live provider credentials or deployed rules.
+
+
+## Inline accommodations — 9 November 2026
+
+- [x] Add accommodation while preparing quotation, itinerary cost sheet or tour-package day.
+- [x] Save name, destination/free-text location, overview, amenities, activities and shared media.
+- [x] Save multiple room types/private STO prices or general STO fallback.
+- [x] Accommodation and rate card commit atomically and appear in the reusable library.
+- [x] Later quotations reuse properties/rooms; tour-based costs copy selected room STO.
+- [x] Keep supplier prices private, preserve quotation snapshots and warn on currency mismatch.
+- [x] Remove sidebar account/profile/sign-out duplication; retain top-right menu.
+- [x] 45 server, 25 isolated workflow and 94 original storage/validation checks passed.
+- [ ] Owner verifies the new flow after restarting the configured staging CMS.
+
+
+## Daily costs and profit — 9 November 2026
+
+- [x] Open/close each day's costs without losing entries.
+- [x] Remove the profit-base column and new Per traveller choice; simplify room/night wording.
+- [x] Add Per day and show independent automatic adult/child quantities.
+- [x] Add separate child rates and retain manual room/vehicle quantities.
+- [x] Show all-day itinerary costs before guest introduction.
+- [x] Calculate percentages on selected cost groups, show profit, then guest grand total.
+- [x] Reject duplicate/overlapping rules and preserve legacy calculations.
+- [x] Keep private costs and profit rules out of the guest projection.
+- [x] 56 server, 24 daily-cost browser, 25 accommodation browser and 94 original tests passed in isolation.
+- [ ] Owner reviews the updated configured CMS after restarting it.

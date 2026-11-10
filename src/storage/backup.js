@@ -1,3 +1,4 @@
+import {reviewBackupIssues,documentAssets,routeOf as reviewRouteOf,REVIEW_PREFIX} from '../review/model.js';
 // Versioned JSON backup and import. The data backup excludes image binaries (stated in the file itself);
 // a separate media backup carries the original image files as base64. Imports are validated completely —
 // including the records an older backup would keep — and then applied in a single transaction, so a
@@ -20,7 +21,7 @@ import { ALL_STORES, STORES, request, runTransaction } from './idb.js';
 import { RepoError } from './content-repository.js';
 import { MEDIA_LIMITS, inspectImageFile } from './media-validation.js';
 import { KINDS, LEGACY_KINDS, assetRefs, makeContext, relationRefs, taxonomyRefs } from '../modules/shared/records.js';
-import { ROUTE_PREFIXES, SLUG_PATTERN, redirectProblems, routeFor } from '../modules/shared/routes.js';
+import { ROUTE_PREFIXES, SLUG_PATTERN, redirectProblems, routeFor, routeClaims } from '../modules/shared/routes.js';
 import { errorsOnly, validateDraft } from '../modules/shared/validation.js';
 import { LINEUP_ID, SETTINGS_ID, SITE_KINDS, siteAssetRefs } from '../modules/shared/site.js';
 import { validateMemberDraft, validateSettingsDraft } from '../modules/shared/site-validation.js';
@@ -34,7 +35,7 @@ export const SCHEMAS_VERSION = 3;
 export const LEGACY_SCHEMAS_VERSIONS = Object.freeze([1, 2]);
 export const LEGACY_SCHEMAS_VERSION = 1;
 export const MEDIA_SCHEMAS_VERSION = 1;
-export const DATA_BACKUP_NOTICE = 'This data backup contains records (destinations, accommodations, tours and day trips), published snapshots, planned local redirects, taxonomy terms and the published taxonomy, day-trip defaults, site settings, team profiles, team order and visibility, and image metadata. It does NOT contain image files or private operational bookings, rates, tour costs and quotations. Export the separate media backup for images and the private operations backup from Quotations for operational records. Content imports retain private operations separately.';
+export const DATA_BACKUP_NOTICE = 'This data backup contains records (destinations, accommodations, tours and day trips), published snapshots, planned local redirects, taxonomy terms and the published taxonomy, day-trip defaults, site settings, team profiles, team order and visibility, and image metadata. Includes editorial pages, blog, FAQs, migration, impact, navigation, internal staff directory and workspace preferences. It does NOT contain image files or private operational bookings, rates, tour costs and quotations. Export the separate media backup for images and the private operations backup from Quotations for operational records. Content imports retain private operations separately.';
 export const LEGACY_IMPORT_NOTICES = Object.freeze({
   1: 'This backup was made before Site Settings, Team and Day Trips existed (schemasVersion 1). It replaces destinations, accommodations, tours, their published snapshots, planned redirects, taxonomy terms and image details. It keeps your current site settings, team profiles and team order, your day trips (drafts, published versions and planned redirects), the day-trip defaults, and the taxonomy terms and image details/files those kept records use. Terms that already exist here keep their key, display order and active flag; other terms get them from their labels. The backup’s terms become the published taxonomy.',
   2: 'This backup was made before Day Trips existed (schemasVersion 2). It replaces destinations, accommodations, tours, their published snapshots, planned redirects, taxonomy terms, site settings, team profiles, team order and image details. It keeps your current day trips (drafts, published versions and planned redirects), the day-trip defaults, and the taxonomy terms and image details/files those day trips use. Terms that already exist here keep their key, display order and active flag; other terms get them from their labels. The backup’s terms become the published taxonomy.'
@@ -72,12 +73,12 @@ function base64ToBlob(data, type) {
 // Reads every collection a backup covers (inside the caller's transaction).
 async function readCollections(tx) {
   const all = name => request(tx.objectStore(name).getAll());
-  const [records, published, redirects, taxonomies, taxonomyPublication, assets, blobKeys, siteRecords, sitePublished, defaults] = await Promise.all([
+  const [records, published, redirects, taxonomies, taxonomyPublication, assets, blobKeys, siteRecords, sitePublished, defaults, metaRows] = await Promise.all([
     all(STORES.records), all(STORES.published), all(STORES.redirects), all(STORES.taxonomies),
     request(tx.objectStore(STORES.taxonomyPublished).get(TAXONOMY_PUBLICATION_ID)), all(STORES.assets), request(tx.objectStore(STORES.assetBlobs).getAllKeys()),
-    all(STORES.siteRecords), all(STORES.sitePublished), request(tx.objectStore(STORES.defaults).get(DEFAULTS_ID))
+    all(STORES.siteRecords), all(STORES.sitePublished), request(tx.objectStore(STORES.defaults).get(DEFAULTS_ID)), all(STORES.meta)
   ]);
-  return { records, published, redirects, taxonomies, taxonomyPublication: taxonomyPublication || null, assets, blobKeys, siteRecords, sitePublished, defaults: defaults || null };
+  return { records, published, redirects, taxonomies, taxonomyPublication: taxonomyPublication || null, assets, blobKeys, siteRecords, sitePublished, defaults: defaults || null, reviewRecords:metaRows.filter(x=>x.key.startsWith(REVIEW_PREFIX)).map(x=>x.value), reviewProfile:metaRows.find(x=>x.key==='review-profile')?.value||null, reviewActivity:metaRows.filter(x=>x.key.startsWith('review-activity:')).map(x=>x.value) };
 }
 
 export function createBackupService({ db, validator, siteValidator, events, clock = () => new Date().toISOString() }) {
@@ -125,6 +126,9 @@ export function createBackupService({ db, validator, siteValidator, events, cloc
       ids.add(a.id);
     });
     const assetIds = new Set(data.assets.filter(isObject).map(a => a.id));
+    if('reviewRecords' in data){if(data.reviewVersion!==1)fail('reviewVersion','unsupported editorial extension version');for(const issue of reviewBackupIssues(data.reviewRecords,assetIds))fail('reviewRecords',issue);}
+    if(data.reviewProfile&&(typeof data.reviewProfile.name!=='string'||typeof data.reviewProfile.email!=='string'||typeof data.reviewProfile.timezone!=='string'))fail('reviewProfile','invalid workspace profile');
+    if(data.reviewActivity&&(!Array.isArray(data.reviewActivity)||data.reviewActivity.some(x=>!x||typeof x.id!=='string'||typeof x.at!=='string'||typeof x.title!=='string')))fail('reviewActivity','invalid activity entries');
 
     const terms = validateTerms(data, legacy, ids, fail);
     const publication = legacy
@@ -441,7 +445,8 @@ export function createBackupService({ db, validator, siteValidator, events, cloc
       return {
         format: BACKUP_FORMAT, schemasVersion: SCHEMAS_VERSION, exportedAt: clock(), binaryAssetsIncluded: false, notice: DATA_BACKUP_NOTICE,
         records: all.records, published: all.published, redirects: all.redirects, taxonomies: all.taxonomies, taxonomyPublication: all.taxonomyPublication,
-        dayTripDefaults: all.defaults, assets: all.assets, siteRecords: all.siteRecords, sitePublished: all.sitePublished
+        dayTripDefaults: all.defaults, assets: all.assets, siteRecords: all.siteRecords, sitePublished: all.sitePublished,
+        reviewVersion:1, reviewRecords:all.reviewRecords, reviewProfile:all.reviewProfile, reviewActivity:all.reviewActivity
       };
     },
 
@@ -479,7 +484,10 @@ export function createBackupService({ db, validator, siteValidator, events, cloc
       const summary = await runTransaction(db, ALL_STORES, 'readwrite', async tx => {
         const store = name => tx.objectStore(name);
         const now = clock();
-        const plan = planImport(data, check, await readCollections(tx), now);
+        const current=await readCollections(tx);
+        const plan = planImport(data, check, current, now);
+        if(!('reviewRecords' in data)){const keepImages=new Set(current.reviewRecords.flatMap(e=>[e.record,e.published].filter(Boolean)).flatMap(documentAssets));for(const asset of current.assets)if(keepImages.has(asset.id)&&!plan.final.assets.some(a=>a.id===asset.id))plan.final.assets.push(asset);}
+        const coreClaims=routeClaims({records:new Map(plan.final.records.map(e=>[e.id,e])),published:new Map(plan.final.published.map(e=>[e.id,e])),redirects:plan.final.redirects});for(const env of data.reviewRecords||current.reviewRecords)for(const path of new Set([reviewRouteOf(env.kind,env.record),...(env.routeHistory||[])].filter(Boolean)))if(coreClaims.has(path))plan.errors.push('Editorial path conflicts with catalogue route: '+path);
         if (plan.errors.length) throw new RepoError('validation', 'The backup was rejected. Nothing was changed.', { errors: plan.errors });
         const { final } = plan;
         const keep = new Set(final.assets.map(a => a.id));
@@ -505,6 +513,7 @@ export function createBackupService({ db, validator, siteValidator, events, cloc
           ...check.summary, keptSiteRecords: plan.kept.siteRecords, keptAssets: plan.kept.assets, keptDayTrips: plan.kept.dayTrips, keptTerms: plan.kept.terms,
           keptDefaults: check.legacy && plan.kept.defaults, missingFiles: final.assets.filter(a => !remainingBlobs.has(a.id)).length, warnings: check.warnings.length
         };
+        if('reviewRecords' in data){const meta=store(STORES.meta),existing=await request(meta.getAll()),versions=new Map(existing.filter(x=>x.key.startsWith(REVIEW_PREFIX)).map(x=>[x.value.id,x.value.version]));for(const e of existing)if(e.key.startsWith(REVIEW_PREFIX)||e.key.startsWith('review-activity:'))await request(meta.delete(e.key));for(const value of data.reviewRecords)await request(meta.put({key:REVIEW_PREFIX+value.id,value:{...value,version:Math.max(value.version,versions.get(value.id)||0)+1}}));for(const value of data.reviewActivity||[])await request(meta.put({key:'review-activity:'+value.id,value}));if(data.reviewProfile)await request(meta.put({key:'review-profile',value:data.reviewProfile}));}
         await request(store(STORES.meta).put({ key: 'lastImport', at: now, summary: applied }));
         return applied;
       });
