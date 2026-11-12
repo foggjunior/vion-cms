@@ -37,10 +37,13 @@ export async function createSiteView({ app, path, params = new URLSearchParams()
   const settings = ctx.sitePublished.get(SETTINGS_ID)?.snapshot || null;
   const siteOpts = { scope, assets: ctx.assets };
   const footer = () => h('div', { class: 'site-section' }, h('nav',{class:'review-public-nav'},publishedMenus.filter(e=>e.published.placement==='Footer').flatMap(e=>e.published.links.map(l=>h('a',{href:l.href.startsWith('/')?'#/site'+l.href:l.href},l.label)))),h('h2', null, 'Footer'), settings ? footerPreview(settings, siteOpts) : fallbackFooter());
-  const frame = (...children) => h('div', { class: 'site-view' },
-    h('div', { class: 'view-head' }, h('div', null, h('div', { class: 'eyebrow' }, 'LOCAL PREVIEW SITE'), h('h1', { tabindex: '-1' }, children.shift()),
+  const frame = (title, ...children) => {
+    const hasPageHeading = children.some(child => child?.matches?.('h1') || child?.querySelector?.('h1'));
+    return h('div', { class: 'site-view' },
+    h('div', { class: 'view-head' }, h('div', null, h('div', { class: 'eyebrow' }, 'LOCAL PREVIEW SITE'), h(hasPageHeading ? 'p' : 'h1', { tabindex: '-1' }, title),
       h('p', { class: 'view-intro' }, 'Only published snapshots appear here. This is not the live website and nothing is deployed.'))),
     toolNav('site'), h('nav',{class:'review-public-nav'},['/blog','/faqs','/experiences','/tanzania-migration','/give-back'].map(path=>h('a',{href:'#/site'+path},({'/blog':'Journal','/faqs':'FAQs','/experiences':'Experiences','/tanzania-migration':'Migration','/give-back':'Giving back'})[path])),publishedMenus.filter(e=>e.published.placement!=='Footer').flatMap(e=>e.published.links.map(l=>h('a',{href:l.href.startsWith('/')?'#/site'+l.href:l.href},l.label)))), ...children, footer());
+  };
   const result = (el, title) => ({ el, title, breadcrumb: 'Local preview site', mounted() { el.querySelector('h1').focus({ preventScroll: true }); }, destroy() { scope.revokeAll(); } });
   const team = () => publishedTeam(ctx).map(pub => ({ member: pub.snapshot, href: `#/site/team/${pub.id}` }));
   const teamEmpty = 'No team profiles are published and visible in the published team order.';

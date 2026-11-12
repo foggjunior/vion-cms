@@ -75,8 +75,23 @@ export function announce(message) {
   setTimeout(() => { liveRegion.textContent = message; }, 30);
 }
 
+export function loadingStatus(message, className = '') {
+  return h('div', { class: ['loading-status', className], role: 'status' },
+    h('span', { class: 'cms-spinner', 'aria-hidden': 'true' }), message);
+}
+
 export function button(label, { variant = 'secondary', iconName, onClick, ...rest } = {}) {
-  return h('button', { type: 'button', class: ['btn', `btn-${variant}`, rest.class], on: onClick ? { click: onClick } : null, ...omit(rest, ['class']) }, iconName ? icon(iconName) : null, h('span', null, label));
+  function click(event) {
+    const control = event.currentTarget;
+    if (control.getAttribute('aria-busy') === 'true') return;
+    const result = onClick(event);
+    if (typeof result?.then !== 'function') return;
+    control.setAttribute('aria-busy', 'true');
+    Promise.resolve(result).catch(error => {
+      if (control.isConnected) document.dispatchEvent(new CustomEvent('cms-action-error', { detail: error }));
+    }).finally(() => control.removeAttribute('aria-busy'));
+  }
+  return h('button', { type: 'button', class: ['btn', `btn-${variant}`, rest.class], on: onClick ? { click } : null, ...omit(rest, ['class']) }, iconName ? icon(iconName) : null, h('span', null, label));
 }
 
 export function linkButton(label, href, { variant = 'secondary', iconName, ...rest } = {}) {

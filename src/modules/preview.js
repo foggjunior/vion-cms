@@ -1,3 +1,4 @@
+import {writingPreview,writingPlainText} from '../components/writing.js';
 // Read-only renderers for saved drafts and published snapshots. All text is rendered as text nodes.
 import { h, icon } from '../components/dom.js';
 import { assetImage } from '../components/media.js';
@@ -106,7 +107,7 @@ function destinationBody(record) {
   ];
 }
 
-function accommodationBody(record, resolver, linkFor) {
+function accommodationBody(record, resolver, linkFor, scope) {
   const location = record.destinationId
     ? h('p', null, 'Destination: ', refList([record.destinationId], resolver, linkFor))
     : h('p', null, 'No linked destination', record.noDestinationReason ? `: ${record.noDestinationReason}` : '.');
@@ -115,7 +116,7 @@ function accommodationBody(record, resolver, linkFor) {
     record.website ? h('p', null, 'Website: ', h('a', { href: record.website, target: '_blank', rel: 'noopener noreferrer' }, record.website)) : null
   ].filter(Boolean);
   return [
-    section('About', location, h('p', null, [record.type, record.standard, ACCOMMODATION_SETTINGS[record.setting]].filter(Boolean).join(' · ')), prose(record.description)),
+    section('About', location, h('p', null, [record.type, record.standard, ACCOMMODATION_SETTINGS[record.setting]].filter(Boolean).join(' · ')), writingPreview(record.description,{sectionLevel:3,scope})),
     section('Amenities', list(record.amenities)),
     section('Activities', list(record.activities)),
     section('Contact', contact.length ? contact : h('p', { class: 'muted' }, 'No public contact details shown.'))
@@ -133,7 +134,7 @@ function termTags(ids, resolver) {
   return tags.length ? h('p', { class: 'term-row' }, tags) : null;
 }
 
-function tourBody(record, resolver, linkFor) {
+function tourBody(record, resolver, linkFor, scope) {
   return [
     h('div', { class: 'tour-facts' },
       h('div', null, h('small', null, 'Duration'), h('strong', null, record.durationDays ? `${record.durationDays} day${record.durationDays === 1 ? '' : 's'}` : 'Not set')),
@@ -142,7 +143,7 @@ function tourBody(record, resolver, linkFor) {
     record.pricing?.mode === 'manualFrom' ? h('p', { class: 'muted small preview-pad' }, PROVISIONAL_PRICING_WARNING) : null,
     termTags([record.typeId, record.categoryId, record.standardId, ...(record.tagIds || [])], resolver),
     record.summary ? h('p', { class: 'lead' }, record.summary) : null,
-    section('Overview', prose(record.overview)),
+    section('Overview', writingPreview(record.overview,{sectionLevel:3,scope})),
     section('Itinerary', record.itinerary?.length ? h('ol', { class: 'itinerary-preview' }, record.itinerary.map(day => h('li', null,
       h('h3', null, `Day ${day.dayNumber}: `, day.title || 'Untitled day'),
       prose(day.description),
@@ -178,9 +179,9 @@ function dayTripBody(record, resolver, linkFor) {
 const BODIES = { destination: destinationBody, accommodation: accommodationBody, tour: tourBody, dayTrip: dayTripBody };
 
 export function renderRecordPage(record, { resolver, scope, linkFor, showSeo = false }) {
-  const body = BODIES[record.kind](record, resolver, linkFor);
+  const body = BODIES[record.kind](record, resolver, linkFor, scope);
   const seoTitle = record.seo?.title || publicName(record);
-  const seoDescription = record.seo?.description || truncateWords(descriptionSource(record), SEO_DESCRIPTION_ADVICE);
+  const seoDescription = record.seo?.description || truncateWords(writingPlainText(descriptionSource(record)), SEO_DESCRIPTION_ADVICE);
   return h('article', { class: 'preview-page' },
     record.cover ? figure(scope, resolver, record.cover, 'preview-hero') : h('div', { class: 'preview-hero img-box img-missing' }, icon('image'), h('span', null, 'No cover image')),
     h('header', { class: 'preview-head' },

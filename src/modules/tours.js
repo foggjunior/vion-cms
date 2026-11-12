@@ -40,7 +40,7 @@ function classification(ed) {
 function content(ed) {
   return [
     ed.group(null,
-      ed.text('overview', { label: 'Overview', required: 'publish', multiline: true, rows: 8, hint: 'Plain text. Separate paragraphs with a blank line.' }),
+      ed.text('overview', { formatting:true, label: 'Overview', required: 'publish', multiline: true, rows: 8, hint: 'Use the toolbar to format the overview.' }),
       ed.list('inclusions', { label: 'Inclusions · required to publish', noun: 'inclusion', placeholder: 'e.g. Park entrance fees' }),
       ed.list('exclusions', { label: 'Exclusions · required to publish', noun: 'exclusion', placeholder: 'e.g. International flights' }))
   ];

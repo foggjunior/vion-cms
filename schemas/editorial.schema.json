@@ -52,6 +52,9 @@
         },
         "seoDescription": {
           "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
         }
       },
       "required": [
@@ -215,6 +218,9 @@
         },
         "seoDescription": {
           "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
         }
       },
       "required": [
@@ -278,6 +284,9 @@
           "type": "string"
         },
         "seoDescription": {
+          "type": "string"
+        },
+        "subtitle": {
           "type": "string"
         }
       },

@@ -3,7 +3,7 @@ import { button, clear, h } from '../components/dom.js';
 import { confirmDialog, messageDialog } from '../components/dialog.js';
 import { errorDetails, notice, toast } from '../components/feedback.js';
 import { MediaUrlScope, assetImage, assetSummary } from '../components/media.js';
-import { uploadFiles, uploadResultList } from '../components/media-picker.js';
+import { runImageUpload } from '../components/media-picker.js';
 import { ACCEPT_ATTRIBUTE, MEDIA_LIMITS } from '../storage/media-validation.js';
 import { assetUsage } from './shared/records.js';
 import { formatBytes, formatDateTime } from './shared/format.js';
@@ -43,9 +43,9 @@ export async function createMediaLibraryView({ app }) {
             onClick: async () => {
               try {
                 await ws.media.updateMeta(asset.id, { alt: fields.alt.value, credit: fields.credit.value, caption: fields.caption.value }, { expectedVersion: asset.version });
-                toast(`Saved details for ${asset.fileName}.`);
+                toast(`Saved details for ${asset.fileName}.`, { tone: 'success' });
                 await reload();
-              } catch (err) { status.textContent = err.message; }
+              } catch (err) { status.textContent = err.message; toast(err.message, { tone: 'error' }); }
             }
           }),
           button('Delete', {
@@ -75,15 +75,7 @@ export async function createMediaLibraryView({ app }) {
   const fileInput = h('input', {
     id: 'library-upload', type: 'file', accept: ACCEPT_ATTRIBUTE, multiple: true, class: 'visually-hidden-file',
     on: {
-      change: async e => {
-        const files = [...e.target.files];
-        e.target.value = '';
-        if (!files.length) return;
-        clear(uploadResults).append(h('p', { class: 'muted' }, 'Checking files…'));
-        const { results } = await uploadFiles(ws, files);
-        clear(uploadResults).append(uploadResultList(results));
-        await reload();
-      }
+      change: event => runImageUpload(event.currentTarget,ws,uploadResults,reload)
     }
   });
 

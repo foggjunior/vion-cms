@@ -5,7 +5,7 @@ export function basisOptions(value){return [...Object.entries(BASIS).map(([value
 export function quantityFor(l,q){return l.basis==='adults'?q.adults:l.basis==='kids'?q.kids:l.basis==='travellers'?q.adults+q.kids:['day','trip'].includes(l.basis)?1:l.quantity;}
 export function lineTotal(l,q){if(!l.included)return 0n;const quantity=quantityFor(l,q);if(!Number.isInteger(quantity)||quantity<0||quantity>100000)throw Error('Quantity must be a nonnegative whole number.');return quantity===0?0n:money(l.amount)*BigInt(quantity);}
 export function profitGroup(l){return l.category==='accommodation'?'accommodation':'cost:'+(l.profitGroup||l.label).trim();}
-export function profitTargets(q){const groups=new Map([['accommodation','Accommodation'],['all','All itinerary costs']]);for(const d of q.days||[])for(const l of d.lines||[])if(l.included&&profitGroup(l)!=='accommodation')groups.set(profitGroup(l),l.profitGroup||l.label);return [...groups].map(([value,label])=>({value,label}));}
+export function profitTargets(q){const groups=new Map([['accommodation','Accommodation'],['all','All itinerary costs']]);for(const d of q.days||[])for(const l of d.lines||[])if(l.included&&l.label.trim()&&profitGroup(l)!=='accommodation')groups.set(profitGroup(l),l.profitGroup||l.label);return [...groups].map(([value,label])=>({value,label}));}
 export function profitRules(q){return q.profitRules??[{target:'accommodation',percent:q.profitPercent??'0'}];}
 export function validateProfit(q){const seen=new Set();if(!Array.isArray(profitRules(q)))throw Error('Profit rules must be a list.');for(const r of profitRules(q)){if(typeof r.target!=='string'||!['all','accommodation'].includes(r.target)&&!r.target.startsWith('cost:')||seen.has(r.target))throw Error('Choose each profit cost group only once.');seen.add(r.target);if(money(r.percent)>100000n)throw Error('Profit percentage must be between 0 and 1000.');}if(seen.has('all')&&seen.size>1)throw Error('All itinerary costs cannot be combined with another profit rule.');}
 export const mandatory=['Park fees','Accommodation STO','Transport costs','Car permit','Concession fees','Flying doctor'];
@@ -14,13 +14,21 @@ export function money(v){if(!/^(0|[1-9]\d*)(\.\d{1,2})?$/.test(String(v)))throw 
 export function decimal(n){return `${n/100n}.${String(n%100n).padStart(2,'0')}`;}
 export function line(label,category=label==='Accommodation STO'?'accommodation':'other'){return {id:crypto.randomUUID(),label,category,basis:'trip',quantity:1,amount:'',included:true};}
 export function newDay(){return {id:crypto.randomUUID(),destinationId:'',destinationName:'',destinationOverview:'',accommodationId:'',accommodationName:'',accommodationOverview:'',roomId:'',roomName:'',description:'',meals:'',activities:'',lines:mandatory.map(x=>line(x))};}
+export function childCostsNeedReview(day, quote) {
+ return quote.reviewChildCosts === true && quote.kids > 0 &&
+   day.noChildCharges !== true &&
+   !day.lines.some(cost => cost.included && cost.basis === 'kids');
+}
+
 export function recalc(q){
  if(!Number.isInteger(q.adults)||q.adults<0||!Number.isInteger(q.kids)||q.kids<0||q.adults+q.kids<1)throw new Error('Enter at least one traveller with whole-number adults and children.');
  if(!q.days?.length)throw new Error('Add at least one itinerary day.');
  if(!/^[A-Z]{3}$/.test(q.currency))throw new Error('Choose a three-letter currency.');
  try{new Intl.NumberFormat('en',{style:'currency',currency:q.currency});}catch{throw new Error('Invalid currency.');}
  validateProfit(q);let costs=0n,sto=0n;const dayTotals=[],groups=new Map();
- q.days.forEach(day=>{let subtotal=0n;for(const l of day.lines){if(!l.included)continue;if(!l.label.trim())throw Error('Name every included cost.');if(!validBasis(l.basis))throw Error('Invalid charging basis.');const total=lineTotal(l,q);subtotal+=total;const group=profitGroup(l);groups.set(group,(groups.get(group)||0n)+total);if(group==='accommodation')sto+=total;}costs+=subtotal;dayTotals.push(decimal(subtotal));});
+ q.days.forEach((day,index)=>{
+ if(childCostsNeedReview(day,q))throw new Error('Day '+(index+1)+': add child costs or confirm no child charges.');
+ let subtotal=0n;for(const l of day.lines){if(!l.included||(l.basis==='kids'&&q.kids===0))continue;if(!l.label.trim())throw Error('Name every included cost.');if(!validBasis(l.basis))throw Error('Invalid charging basis.');const total=lineTotal(l,q);subtotal+=total;const group=profitGroup(l);groups.set(group,(groups.get(group)||0n)+total);if(group==='accommodation')sto+=total;}costs+=subtotal;dayTotals.push(decimal(subtotal));});
  let profit=0n;const profitBreakdown=profitRules(q).map(rule=>{const base=rule.target==='all'?costs:groups.get(rule.target)||0n,addition=(base*money(rule.percent)+5000n)/10000n;profit+=addition;return {target:rule.target,percent:rule.percent,base:decimal(base),profit:decimal(addition)};});const total=costs+profit,people=BigInt(q.adults+q.kids);return {costs:decimal(costs),sto:decimal(sto),profit:decimal(profit),total:decimal(total),perPerson:decimal((total+people/2n)/people),dayTotals,profitBreakdown};
 }
 export function newQuote(){return {id:crypto.randomUUID(),version:0,schemaVersion:1,kind:'quotation',title:'Safari quotation',bookingId:'',tourId:'',fullName:'',email:'',phone:'',adults:1,kids:0,arrivalDate:'',departureDate:'',safariIdeas:'',additionalDetails:'',currency:'USD',profitPercent:'30',days:[],inclusions:'',exclusions:'',introduction:'',paymentTerms:'',consultant:'',status:'Draft'};}

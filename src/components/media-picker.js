@@ -1,5 +1,6 @@
 // Media picker dialog: upload new images (inspected before storing) or reuse assets from the local library.
-import { clear, h, icon } from './dom.js';
+import { clear, h, icon, loadingStatus } from './dom.js';
+import { toast } from './feedback.js';
 import { openDialog } from './dialog.js';
 import { MediaUrlScope, assetImage } from './media.js';
 import { ACCEPT_ATTRIBUTE, MEDIA_LIMITS, inspectImageFile } from '../storage/media-validation.js';
@@ -22,6 +23,32 @@ export async function uploadFiles(workspace, files) {
     }
   }
   return { added, results };
+}
+
+export async function runImageUpload(input, workspace, results, refresh) {
+  if (input.disabled) return;
+  const files = [...input.files];
+  input.value = '';
+  if (!files.length) return;
+  input.disabled = true;
+  clear(results).append(loadingStatus(files.length === 1 ? 'Checking and uploading image…' : 'Checking and uploading images…'));
+  try {
+    const {added,results:outcomes} = await uploadFiles(workspace,files);
+    clear(results).append(uploadResultList(outcomes));
+    const failed = outcomes.length - added.length;
+    const message = failed
+      ? `${failed} of ${outcomes.length} images could not be added. See the upload details.`
+      : added.length === 1 ? 'Image added to the Gallery.' : `${added.length} images added to the Gallery.`;
+    toast(message,{tone:failed ? 'error' : 'success'});
+    if (results.isConnected) await refresh(added);
+  } catch (error) {
+    const message = error.message || 'The Gallery could not finish processing the images.';
+    results.querySelector('.loading-status')?.remove();
+    results.append(h('p',{class:'field-error',role:'alert'},message));
+    toast(message,{tone:'error'});
+  } finally {
+    input.disabled = false;
+  }
 }
 
 export function uploadResultList(results) {
@@ -74,19 +101,14 @@ export async function openMediaPicker({ workspace, multiple = false, title = 'Ch
   const fileInput = h('input', {
     type: 'file', id: 'media-upload-input', accept: ACCEPT_ATTRIBUTE, multiple: multiple || null, class: 'visually-hidden-file',
     on: {
-      change: async e => {
-        const files = [...e.target.files];
-        e.target.value = '';
-        if (!files.length) return;
-        clear(results).append(h('p', { class: 'muted' }, `Checking ${files.length} file${files.length === 1 ? '' : 's'}…`));
-        const { added, results: list } = await uploadFiles(workspace, files);
-        clear(results).append(uploadResultList(list));
+      change: event => runImageUpload(event.currentTarget,workspace,results,async added=>{
         assets = await workspace.media.list();
-        if (!multiple) selected.clear();
+        if (!results.isConnected) return;
+        if (added.length && !multiple) selected.clear();
         for (const asset of added) selected.set(asset.id, assets.find(a => a.id === asset.id) || asset);
         renderGrid();
         updateUse();
-      }
+      })
     }
   });
 

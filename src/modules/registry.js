@@ -60,7 +60,7 @@ export function parseRoute(hash) {
   if (path === '/quotations/new') return {type:'operation',mode:'quote',params};
   if ((m=path.match(new RegExp(`^/quotations/(${UUID})$`,'i')))) return {type:'operation',mode:'quote',id:m[1],params};
   if ((m=path.match(new RegExp(`^/costing/tour/(${UUID})$`,'i')))) return {type:'operation',mode:'tour',id:m[1],params};
-  if ((m=path.match(new RegExp(`^/rates/(destination|accommodation)/(${UUID})$`,'i')))) return {type:'operation',mode:'rates',entityKind:m[1],id:m[2],params};
+  if ((m=path.match(new RegExp(`^/rates/(accommodation)/(${UUID})$`,'i')))) return {type:'operation',mode:'rates',entityKind:m[1],id:m[2],params};
   if (path === '/day-trips/defaults') return { type: 'day-trip-defaults' };
   if ((m = path.match(new RegExp(`^/(${modules})/?$`)))) return { type: 'list', def: CONTENT_MODULES[m[1]], params };
   if ((m = path.match(new RegExp(`^/(${modules})/new$`)))) return { type: 'editor', def: CONTENT_MODULES[m[1]], id: null };

@@ -8,6 +8,9 @@ import { slugify } from './src/modules/shared/routes.js';
 import { CONTENT_ROUTES, createView, parseRoute } from './src/modules/registry.js';
 
 window.__vionBooted = true;
+document.addEventListener('cms-action-error', event => {
+  toast(event.detail?.message || 'The action could not be completed.', { tone: 'error' });
+});
 
 // ---- Dashboard shell (sample fixtures; unchanged layout) ----
 const modules=[['Dashboard','dashboard',[]],['Tour Packages','map',['Tours List','Add Tour','Activities / day trips','Add Activity','Taxonomies']],['Destinations','pin',['Destinations List','Add Destination']],['Accommodations','home',['Accommodations List','Add Accommodation']],['Bookings','calendar',['All Bookings','Quotation','Connect website']],['Safari Proposals','file',['Top Itineraries','Quotations List','Add Quotation / Itinerary']],['Blogs','edit',['Blog Posts','Add Post','Categories']],['Users','users',['Users List']],['Messages','message',['Messages List']],['Media Library','image',['Gallery']],['Email Subscribers','mail',['Mailing List']],['Vehicles','car',['Vehicles List','Add Vehicle']],['Migration','leaf',['Migration Posts','Add Post']],['Giving Back','heart',['Charity','Profiles']],['Settings','settings',['Setting Options','Team','Reports','Activity','Backup & import','Redirects','Review guide']],['Content','file',['Website pages','Experiences','FAQs','Navigation']]];
@@ -37,14 +40,26 @@ function showRegion(region) {
   else previewNote.innerHTML = DASHBOARD_NOTE;
 }
 
-async function showDashboard() {
+function pageSkeleton(message, dashboard = false) {
+  const bar = className => h('div', {class:['skeleton-bar',className]});
+  return h('div', {class:'page-skeleton',role:'status'},
+    h('span', {class:'visually-hidden'}, message),
+    h('div', {'aria-hidden':'true',class:'skeleton-layout'},
+      bar('skeleton-title'), bar('skeleton-subtitle'),
+      dashboard ? h('div', {class:'skeleton-stats'}, bar(), bar(), bar()) : null,
+      h('div', {class:'panel skeleton-panel'}, bar(), bar(), bar(), bar())));
+}
+
+async function showDashboard(isCurrent) {
   showRegion('dashboard');
   el('pageTitle').textContent = 'Dashboard';
   el('breadcrumb').textContent = 'Dashboard';
   el('pageSubtitle').textContent = 'Welcome back, Vion team. Here’s what’s happening today.';
   document.title = 'Dashboard · Vion Africa CMS';
   setActiveNav(0);
-  try{await renderDashboard(app);}catch(error){dashboardEl.replaceChildren(notice('error',error.message));}
+  dashboardEl.replaceChildren(pageSkeleton('Loading dashboard…', true));
+  try { await renderDashboard(app,isCurrent); }
+  catch (error) { if (isCurrent()) dashboardEl.replaceChildren(notice('error',error.message)); }
 }
 
 function showPlaceholder(index,slug){const label=modules[index]?.[2].find(c=>slugify(c)===slug);if(!label){showNotFound();return;}const destination=hashFor(label,index);if(destination.startsWith('#/section/'))showNotFound();else go(destination);}
@@ -123,11 +138,11 @@ async function render(hash) {
   closeMobile();
   window.scrollTo({ top: 0 });
   const route = parseRoute(hash);
-  if (route.type === 'dashboard') { await showDashboard(); markReady(true); return; }
+  if (route.type === 'dashboard') { await showDashboard(() => token === renderToken); if (token === renderToken) markReady(true); return; }
   if (route.type === 'placeholder') { showPlaceholder(route.moduleIndex, route.slug); markReady(true); return; }
   if (route.type === 'unknown') { showNotFound(); markReady(true); return; }
   showRegion('module');
-  moduleRoot.replaceChildren(h('div', { class: 'panel loading-panel', role: 'status' }, 'Loading local content…'));
+  moduleRoot.replaceChildren(pageSkeleton('Loading page…'));
   let view;
   try { view = await createView(route, app); } catch (err) { console.error(err); view = errorView(err); }
   if (token !== renderToken) { view.destroy?.(); return; }
@@ -209,3 +224,5 @@ function setSidebarCollapsed(collapsed){
 }
 sidebarCollapse.onclick=()=>{if(matchMedia('(max-width:700px)').matches){closeMobile();menuButton.focus();}else setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));};
 nav.querySelectorAll('.nav-toggle').forEach(button=>{const label=button.querySelector('span')?.textContent;button.setAttribute('aria-label',label);button.title=label;});
+
+document.getElementById('copyrightYear').textContent = String(new Date().getFullYear());

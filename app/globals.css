@@ -1,3 +1,15 @@
 @import "tailwindcss";
 @font-face{font-family:Inter;src:url('/approved/assets/fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-display:swap}
 :root{font-family:Inter,Arial,sans-serif;color:#080a0b;background:#edf3f4}body{margin:0}button,input,select,textarea{font:inherit}button,a{cursor:pointer}input,select,textarea{border:1px solid #cad1ce;border-radius:10px;padding:12px;width:100%;background:white}button:focus-visible,a:focus-visible{outline:3px solid #aa791b;outline-offset:3px}
+
+main button {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid #a87821;
+  border-radius: 8px;
+  background: #efc66a;
+  color: #261a05;
+}
+main button:not(:disabled):hover { background: #dfac44; }
+main button:disabled { opacity: .55; cursor: not-allowed; }
+main :is(input, select, textarea) + button { margin-block-start: 10px; }

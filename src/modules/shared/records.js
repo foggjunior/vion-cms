@@ -1,3 +1,4 @@
+import {writingAssetIds} from '../../components/writing.js';
 import {documentAssets,keyOf,DEFINITIONS} from '../../review/model.js';
 // Record factories, form conversion and reference helpers shared by the UI and the repositories.
 import { newId } from './format.js';
@@ -186,6 +187,8 @@ export function relationRefs(record) {
 
 export function assetRefs(record) {
   const refs = [];
+  const path = record.kind === 'tour' ? 'overview' : record.kind === 'accommodation' ? 'description' : null;
+  if (path) for (const assetId of writingAssetIds(record[path])) refs.push({path,assetId,role:'inline photo'});
   if (record.cover?.assetId) refs.push({ path: 'cover', assetId: record.cover.assetId, role: 'cover' });
   (record.gallery || []).forEach((p, i) => refs.push({ path: `gallery.${i}`, assetId: p.assetId, role: 'gallery' }));
   if (record.seo?.shareAssetId) refs.push({ path: 'seo.shareAssetId', assetId: record.seo.shareAssetId, role: 'share image' });

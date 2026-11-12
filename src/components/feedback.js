@@ -1,11 +1,13 @@
 // Toasts, status badges and inline notices.
-import { h, icon } from './dom.js';
+import { announce, h, icon } from './dom.js';
 import { hasUnpublishedChanges } from '../modules/shared/records.js';
 
 let toastTimer;
 export function toast(message, { tone = 'info' } = {}) {
   const el = document.getElementById('toast');
-  el.textContent = message;
+  if (!el) { announce(message); return; }
+  el.replaceChildren(icon(tone === 'success' ? 'check' : tone === 'error' ? 'alert' : 'info'), message);
+  announce(message);
   el.dataset.tone = tone;
   el.hidden = false;
   clearTimeout(toastTimer);

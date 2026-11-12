@@ -45,7 +45,7 @@ function location(ed) {
 function content(ed) {
   return [
     ed.group(null,
-      ed.text('description', { label: 'Description', required: 'publish', multiline: true, rows: 8, hint: 'Plain text. Separate paragraphs with a blank line.' }),
+      ed.text('description', { formatting:true, label: 'Description', required: 'publish', multiline: true, rows: 8, hint: 'Use the toolbar to format the overview.' }),
       ed.list('amenities', { label: 'Amenities', noun: 'amenity', placeholder: 'e.g. Swimming pool' }),
       ed.list('activities', { label: 'Activities', noun: 'activity', placeholder: 'e.g. Guided bush walk' }))
   ];

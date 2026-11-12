@@ -2,7 +2,7 @@ import {createReviewRepository} from '../review/repository.js';
 import {downloadBookingPDF} from '../operations/pdf.js';
 import {h,button,linkButton} from '../components/dom.js';
 import {fieldWrap,textControl,selectControl} from '../components/fields.js';
-import {notice} from '../components/feedback.js';
+import {notice,toast} from '../components/feedback.js';
 import {createBookingsRepository,newBooking} from '../storage/bookings-repository.js';
 
 function download(value){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=h('a',{href:url,download:'vion-private-bookings-'+new Date().toISOString().slice(0,10)+'.json'});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -29,7 +29,7 @@ export async function createBookingsView({app,id=null,edit=false,params=new URLS
  const opts=[{value:'',label:'Custom request / no saved tour'},...records.map(x=>({value:x.id,label:x.record.title}))];if(model.tourId&&!records.some(x=>x.id===model.tourId))opts.push({value:model.tourId,label:model.tourName||'Previously selected tour'});
  const tour=selectControl({id:'booking-tour',value:model.tourId,options:opts,onChange:v=>{model.tourId=v;model.tourName=records.find(x=>x.id===v)?.record.title||'';changed();}});form.append(fieldWrap({id:tour.id,label:'Requested saved tour',control:tour}));
  for(const [key,label,values] of [['status','Status',['Not Confirmed','Confirmed','Cancelled']],['source','Source',['Manual entry','Website email (manually entered)','Other platform','Website form data']]]){const input=selectControl({id:'booking-'+key,value:model[key],options:values.map(v=>({value:v,label:v})),onChange:v=>{model[key]=v;changed();}});form.append(fieldWrap({id:input.id,label,control:input}));}
- const save=button('Save booking',{variant:'primary',onClick:async()=>{if(saving)return;if(!form.reportValidity())return;saving=true;save.disabled=true;const at=revision;message.textContent='Saving…';message.className='';try{const saved=await repo.save(model,b.version);b=saved;model.version=saved.version;if(!alive)return;if(at===revision){dirty=false;message.textContent='Booking saved.';if(id)drawDetails();else app.navigate('#/bookings/'+b.id);}else message.textContent='Saved earlier edits. Newer changes still need saving.';}catch(e){message.className='ops-error';message.textContent=e.message;}finally{saving=false;save.disabled=false;}}});
+ const save=button('Save booking',{variant:'primary',onClick:async()=>{if(saving)return;if(!form.reportValidity()){toast('Booking not saved. Check the highlighted fields.',{tone:'error'});return;}saving=true;save.disabled=true;const at=revision;message.textContent='Saving…';message.className='';try{const saved=await repo.save(model,b.version);toast('Booking saved.',{tone:'success'});b=saved;model.version=saved.version;if(!alive)return;if(at===revision){dirty=false;message.textContent='Booking saved.';if(id)drawDetails();else app.navigate('#/bookings/'+b.id);}else message.textContent='Saved earlier edits. Newer changes still need saving.';}catch(e){message.className='ops-error';message.textContent=e.message;toast(e.message||'Booking not saved.',{tone:'error'});}finally{saving=false;save.disabled=false;}}});
  root.replaceChildren(header(id?'Edit booking':'New booking'),message,form,h('div',{class:'ops-actions'},save,linkButton('Back to bookings','#/bookings')));form.addEventListener('submit',e=>{e.preventDefault();save.click();});
  }
  if(edit)await drawForm();else drawDetails();return view;

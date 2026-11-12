@@ -1,3 +1,4 @@
+import {mountWritingEditor,writingPlainText} from '../components/writing.js';
 // Generic record editor used by the destination, accommodation, tour and day-trip modules (and, through an
 // adapter, by site settings and team profiles).
 import { button, clear, h, icon, linkButton } from '../components/dom.js';
@@ -125,7 +126,7 @@ export async function createEditorView({ def, id, app }) {
   const ed = {
     def, adapter, get model() { return model; }, get ctx() { return ctx; }, get env() { return env; }, get readOnly() { return readOnly(); }, get ws() { return ws; }, scope, changed,
     selectTab(sectionId) { tabs.select(sectionId, true); },
-    text(path, { label, hint, required, multiline, rows, placeholder, inputmode, wide, counter, onInput, list } = {}) {
+    text(path, { label, hint, required, multiline, rows, placeholder, inputmode, wide, counter, onInput, list, formatting } = {}) {
       const fid = fieldIdFor(path);
       let counterEl = null;
       const updateCounter = () => { if (counterEl) counterEl.textContent = `${String(getPath(model, path) || '').length} characters${counter ? ` · around ${counter} advised` : ''}`; };
@@ -134,6 +135,7 @@ export async function createEditorView({ def, id, app }) {
         onInput: value => { setPath(model, path, value); onInput?.(value); updateCounter(); changed(); }
       });
       const wrap = fieldWrap({ id: fid, label, hint, required, control, wide: wide ?? multiline });
+      if(formatting)mountWritingEditor(control,{readOnly:readOnly(),scope,pickImage:options=>ed.pick(options)});
       if (counter) { counterEl = h('p', { class: 'counter' }); wrap.insertBefore(counterEl, wrap.querySelector('.field-error')); updateCounter(); }
       return wrap;
     },
@@ -238,11 +240,12 @@ export async function createEditorView({ def, id, app }) {
     if (readOnly()) {
       actionsEl.append(button('Restore to draft', { variant: 'primary', iconName: 'restore', onClick: doRestore, 'data-action': 'restore' }));
     } else {
-      actionsEl.append(button('Save draft', { variant: 'secondary', iconName: 'check', onClick: () => doSave(), disabled: busy, 'data-action': 'save' }));
+      actionsEl.append(button('Save draft', { variant: 'secondary', iconName: 'check', onClick: () => doSave(), disabled: busy, 'aria-busy': busy && statusEl.dataset.state === 'saving' ? 'true' : null, 'data-action': 'save' }));
       const published = status === 'published';
       const upToDate = published && !hasUnpublishedChanges(env) && !isDirty();
       actionsEl.append(button(published ? (upToDate ? 'Published' : 'Publish changes') : 'Publish', {
         variant: 'primary', iconName: 'globe', onClick: doPublish, disabled: busy || upToDate, 'data-action': 'publish',
+        'aria-busy': busy && statusEl.dataset.state === 'publishing' ? 'true' : null,
         title: upToDate ? 'The published snapshot matches the saved draft.' : 'Publish to the local preview only'
       }));
     }
@@ -286,8 +289,8 @@ export async function createEditorView({ def, id, app }) {
     const sectionId = target.panel?.id.split('-panel-')[1];
     if (sectionId) tabs.select(sectionId);
     let control = target.control || target.slot;
-    if (control && !control.matches('input, textarea, select, button, a[href]')) control = control.querySelector('input, textarea, select, button') || control;
-    if (!control.matches('input, textarea, select, button, a[href]')) control.tabIndex = -1;
+    if (control && !control.matches('input, textarea, select, button, a[href], [contenteditable]')) control = control.querySelector('input, textarea, select, button') || control;
+    if (!control.matches('input, textarea, select, button, a[href], [contenteditable]')) control.tabIndex = -1;
     control.focus({ preventScroll: true });
     control.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
@@ -372,8 +375,8 @@ export async function createEditorView({ def, id, app }) {
     } else {
       setStatus('error', err.message || `Not ${action}.`);
       renderBanners([notice('error', h('strong', null, `Not ${action}. `), err.message || String(err))]);
-      toast(err.message || `Not ${action}.`, { tone: 'error' });
     }
+    toast(statusEl.textContent, { tone: 'error' });
     renderBar();
     return null;
   }
@@ -404,6 +407,7 @@ export async function createEditorView({ def, id, app }) {
         busy = false;
         validationMode = 'draft';
         setStatus('error', 'Not saved — fix the highlighted fields.');
+        toast('Draft not saved. Check the highlighted fields.', { tone: 'error' });
         renderBar();
         return null;
       }
@@ -425,6 +429,7 @@ export async function createEditorView({ def, id, app }) {
       const warnings = adapter.validateDraft(saved.record, ctx).filter(i => i.severity === 'warning');
       applyIssues(warnings);
       setStatus('saved', `Draft saved ${formatTime(saved.record.updatedAt)}${saved.record.status === 'published' ? ' · published version unchanged' : ''}${isDirty() ? ' · newer edits not saved yet' : ''}`);
+      toast('Draft saved.', { tone: 'success' });
       if (wasNew) {
         app.replaceRoute(adapter.editorHref(def, saved.id));
         app.setNav({ breadcrumb: `${def.navGroup} / ${def.listLabel}`, navGroup: def.navGroup, navLabel: def.listLabel });
@@ -460,7 +465,7 @@ export async function createEditorView({ def, id, app }) {
       if (!(await confirmDialog({ title: `Publish “${adapter.titleOf(env.record)}” locally?`, body, confirmLabel: 'Publish locally' }))) return;
     }
     busy = true;
-    setStatus('saving', 'Publishing to local preview…');
+    setStatus('publishing', 'Publishing to local preview…');
     renderBar();
     try {
       const submitted = JSON.stringify(model);
@@ -591,7 +596,7 @@ function seoSection(ed) {
   const updateFallback = () => {
     const record = formToRecord(model).record;
     const title = record.seo.title || publicName(record);
-    const description = record.seo.description || truncateWords(descriptionSource(record), SEO_DESCRIPTION_ADVICE);
+    const description = record.seo.description || truncateWords(writingPlainText(descriptionSource(record)), SEO_DESCRIPTION_ADVICE);
     clear(fallback).append(
       h('p', { class: 'seo-route' }, routeFor(record.kind, record.slug) || '(no slug yet)'),
       h('p', { class: 'seo-title' }, title || 'Untitled'),

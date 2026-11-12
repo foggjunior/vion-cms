@@ -1,3 +1,5 @@
+import {mountWritingEditor} from '../components/writing.js';
+import {toast} from '../components/feedback.js';
 import {h,button} from '../components/dom.js';
 import {fieldWrap,textControl,selectControl} from '../components/fields.js';
 import {openDialog,messageDialog} from '../components/dialog.js';
@@ -9,7 +11,7 @@ export async function addAccommodation({ws,ctx,initial={},currency='USD',onEditi
  const canPrice=!ws.actor||['admin','reservations'].includes(ws.actor.role);let busy=false;
  const form=h('form',{class:'quick-accommodation-form'}),status=h('p',{role:'status',class:'field-error',tabindex:-1}),roomRoot=h('div'),mediaStatus=h('p',null,'No images selected.');
  const edit=()=>onEditing();
- const text=(key,label,{multi=false,required=false}={})=>{const id='quick-stay-'+key,control=textControl({id,value:input[key],multiline:multi,rows:3,onInput:v=>{input[key]=v;edit();}});control.required=required;return fieldWrap({id,label,control});};
+ const text=(key,label,{multi=false,required=false}={})=>{const id='quick-stay-'+key,control=textControl({id,value:input[key],multiline:multi,rows:3,onInput:v=>{input[key]=v;edit();}});control.required=required;const field=fieldWrap({id,label,control});if(key==='overview')mountWritingEditor(control);return field;};
  const location=selectControl({id:'quick-stay-destination',value:input.destinationId,options:[{value:'',label:'Enter another location'},...[...ctx.records.values()].filter(e=>e.kind==='destination'&&e.record.status!=='archived').map(e=>({value:e.id,label:e.record.title}))],onChange:v=>{input.destinationId=v;edit();}});
  form.append(h('p',null,'Save once to your accommodation list and use it here. New entries are drafts; public website publishing is separate.'),text('name','Accommodation name',{required:true}),fieldWrap({id:location.id,label:'Location / destination',control:location}),text('locationName','Other location (if not listed)'),text('overview','Overview',{multi:true}));
  for(const [key,label] of [['amenities','Amenities (one per line)'],['activities','Activities (one per line)']]){const id='quick-stay-'+key,control=textControl({id,multiline:true,rows:3,onInput:v=>{input[key]=v.split('\n').map(s=>s.trim()).filter(Boolean);edit();}});form.append(fieldWrap({id,label,control}));}
@@ -20,7 +22,7 @@ export async function addAccommodation({ws,ctx,initial={},currency='USD',onEditi
  if(canPrice)form.append(h('p',null,'Supplier prices stay private. Leave a price blank if unknown; enter 0 only when it is actually free.'),rateField(input.pricing,'currency','Rate currency',['USD','EUR','GBP','TZS'].map(value=>({value,label:value}))),rateField(input.pricing,'generalAmount','General STO price (fallback)'),rateField(input.pricing,'generalBasis','General charging basis',bases));
  const drawRooms=()=>roomRoot.replaceChildren(...input.pricing.rooms.map((r,n)=>h('section',{class:'quick-room'},h('h4',null,'Room '+(n+1)),rateField(r,'name','Room type'),...(canPrice?[rateField(r,'amount','Room STO price'),rateField(r,'basis','Room charging basis',bases)]:[]),button('Remove room',{onClick:()=>{input.pricing.rooms.splice(n,1);edit();drawRooms();}}))));
  form.append(roomRoot,button('Add room type',{onClick:()=>{input.pricing.rooms.push({id:crypto.randomUUID(),name:'',amount:'',basis:'roomNight'});edit();drawRooms();}}),status);
- let modal;const save=async()=>{if(busy||!form.reportValidity())return;busy=true;status.textContent='Saving accommodation…';const controls=[...modal.dialog.querySelectorAll('input,select,textarea,button')];controls.forEach(c=>c.disabled=true);try{const saved=await createAccommodationService(ws).create(structuredClone(input));modal.close(saved);}catch(e){status.textContent=e.message;status.focus();}finally{busy=false;controls.forEach(c=>c.disabled=false);}};
+ let modal;const save=async()=>{if(busy||!form.reportValidity())return;busy=true;status.textContent='Saving accommodation…';const controls=[...modal.dialog.querySelectorAll('input,select,textarea,button')];controls.forEach(c=>c.disabled=true);try{const saved=await createAccommodationService(ws).create(structuredClone(input));toast('Accommodation draft saved.',{tone:'success'});modal.close(saved);}catch(e){status.textContent=e.message;status.focus();}finally{busy=false;controls.forEach(c=>c.disabled=false);}};
  modal=openDialog({title:'Add accommodation',content:form,wide:true,actions:[{label:'Cancel',value:null},{label:'Save accommodation & use',variant:'primary',onClick:save}]});
  modal.dialog.addEventListener('cancel',e=>{if(busy)e.preventDefault();});form.addEventListener('submit',e=>{e.preventDefault();save();});form.querySelector('input')?.focus();return modal.result;
 }

@@ -1,3 +1,11 @@
+# 11 November 2026 — rich-text editing
+
+Blog articles, impact stories, foundation profiles, tour overviews and accommodation descriptions use an inline formatting toolbar. Quick-add accommodation overviews also support formatting. Page titles supply the H1. Use Heading for sections and Subheading for topics inside them. Blogs, impact stories and foundation profiles require three distinct section headings for new publication. The excerpt is a short listing summary and can supply the search description when no explicit meta description is set.
+
+In the main editors, place the cursor where a photo should appear, select Insert photo, choose an image from the shared media library and add alt text and an optional caption. The CMS preview renders headings, photos and captions. The existing public site's rendering of this format still needs integration verification.
+
+Verified with 18 isolated browser workflow checks and 56 server tests.
+
 # 9 November 2026 — collapsible daily costs and configurable profit
 
 Implemented daily cost open/close controls, removed the profit-base column, simplified charging labels, added Per day, separated adult/child automatic quantities from manual room/vehicle counts, and placed the all-day cost/profit/grand-total summary before the guest introduction. Profit rules can target accommodation, individual cost groups or all itinerary costs, with overlap protection. Existing quotations keep their original calculation unless edited; guest projection uses the selling grand total only.
