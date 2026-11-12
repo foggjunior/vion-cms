@@ -57,7 +57,7 @@ The API verifies sessions and roles independently of the displayed UI. Mutations
 
 `firestore.cms.rules` is a namespaced policy. Use a new staging project as chosen. **Do not replace the production website rules with it.** The existing website has a broad legacy `staff:true` rule: a deny rule on a nested CMS path does not override a matching allow in Firestore. Reusing that project requires reconciling the entire rule set and removing inappropriate broad access before release. This application does not assign the legacy `staff:true` claim.
 
-The supplied `vercel.json` schedules ten-minute processing and requires a plan that supports that frequency. An external scheduler may instead call `/api/cron` with `Authorization: Bearer <CRON_SECRET>`. Delivery is queued, not guaranteed exactly once across all failure scenarios; provider idempotency applies within Resend's supported retention window. Inspect delivery events before manually requeueing exhausted jobs.
+The supplied `vercel.json` schedules processing once daily at 03:00 UTC (06:00 in Dar es Salaam). On plans with hourly precision, execution can occur later in that hour. An external scheduler may instead call `/api/cron` with `Authorization: Bearer <CRON_SECRET>`. Delivery is queued, not guaranteed exactly once across all failure scenarios; provider idempotency applies within Resend's supported retention window. Inspect delivery events before manually requeueing exhausted jobs.
 
 ## Verification performed
 

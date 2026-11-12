@@ -41,7 +41,7 @@ Create a Resend webhook to `https://your-staging-host/api/webhooks/resend`; subs
 
 For inbound email, configure a receiving address/subdomain and fill RESEND_INBOUND_TO with that exact address. Confirm the verified event retrieves a message into Integrations → Received booking emails. Existing mailbox routing must be preserved when choosing the receiving domain. Messages do not create bookings automatically and attachments are not fetched.
 
-Fill CRON_SECRET, then configure a scheduler. The supplied Vercel schedule is every ten minutes and may require a paid plan. The same endpoint is available to a trusted external scheduler. A missing secret denies scheduler access.
+Fill CRON_SECRET, then configure a scheduler. The supplied Vercel schedule runs once daily during the 06:00 hour in Dar es Salaam (03:00 UTC). Use manual sync and queue processing when testing between runs. The same endpoint is available to a trusted external scheduler. A missing secret denies scheduler access.
 
 ## 4. Website requests in staging
 
