@@ -1,7 +1,8 @@
 // Provisional pricing editor shared by tours and day trips: price on request (default) or an explicit manual
 // "from" price (currency, decimal-string amount, basis, public applicability note). No price matrix, totals
 // or quotes (B2/B3). Lives in the editor section with id "pricing".
-import { h } from '../components/dom.js';
+import { createRepeater } from '../components/repeater.js';
+import { button, h } from '../components/dom.js';
 import { notice } from '../components/feedback.js';
 import { fieldIdFor, radioGroup } from '../components/fields.js';
 import { formToRecord } from './shared/records.js';
@@ -32,5 +33,18 @@ export function pricingSection(ed) {
     h('datalist', { id: 'currency-codes' }, [...new Set([...COMMON_CURRENCIES, ...supportedCurrencies()])].map(code => h('option', { value: code })))
   ] : [];
   update();
-  return [mode, ...fields, display];
+  if (ed.model.kind !== 'tour') return [mode, ...fields, display];
+  const rates = createRepeater({
+    items: ed.model.publicRates, readOnly: ed.readOnly, onChange: () => ed.changed(),
+    itemLabel: (_, index) => `Rate ${index + 1}`,
+    emptyText: 'No public seasonal rates.',
+    renderItem: (_, index) => h('div', { class: 'form-grid' },
+      ...[['residency', 'Residency'], ['traveller', 'Traveller type'], ['season', 'Season'],
+        ['currency', 'Currency'], ['amount', 'Amount per person']].map(([key, label]) =>
+        ed.text(`publicRates.${index}.${key}`, { label, required: true })))
+  });
+  return [mode, ...fields, display, h('h3', null, 'Public seasonal rates'), rates.el,
+    ed.readOnly ? null : button('Add public rate', {onClick: () => rates.add({
+      id: crypto.randomUUID(), residency: '', traveller: '', season: '', currency: 'USD', amount: ''
+    })})];
 }

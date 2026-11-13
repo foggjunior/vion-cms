@@ -64,6 +64,7 @@ export function recordToForm(record) {
   for (const key of NUMERIC_FIELDS[record.kind] || []) form[key] = form[key] == null ? '' : String(form[key]);
   form.seo = { ...emptySeo(), ...(form.seo || {}) };
   form.gallery = form.gallery || [];
+  if (record.kind === 'tour') form.publicRates = form.publicRates || [];
   if (record.kind === 'tour') {
     form.pricing = { mode: 'request', ...(form.pricing || {}) };
     form.itinerary = (form.itinerary || []).map(day => ({ destinationIds: [], accommodationIds: [], meals: [], activities: [], ...day }));
@@ -107,6 +108,7 @@ export function formToRecord(form) {
 
   if (record.kind === 'destination') {
     for (const key of ['internalName', 'displayName']) record[key] = String(record[key] || '').trim();
+    record.destinationType = String(record.destinationType || '').trim();
     record.activities = cleanList(record.activities);
     record.travelTips = (record.travelTips || []).map(tip => ({ id: tip.id, title: String(tip.title || '').trim(), body: String(tip.body || '').trim() }));
     integerField('order', { label: 'Order', optional: true });
@@ -133,6 +135,10 @@ export function formToRecord(form) {
       meals: cleanList(day.meals), activities: cleanList(day.activities)
     }));
     record.pricing = cleanPricing(form.pricing);
+    if (record.publicRates) record.publicRates = record.publicRates.map(rate => ({
+      id: rate.id, residency: rate.residency.trim(), traveller: rate.traveller.trim(),
+      season: rate.season.trim(), currency: rate.currency.trim().toUpperCase(), amount: rate.amount.trim()
+    }));
   }
   if (record.kind === 'dayTrip') {
     integerField('displayOrder', { min: 0, label: 'Display order', optional: true });

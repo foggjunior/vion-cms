@@ -9,6 +9,7 @@ function basics(ed) {
   return [
     ed.group(null,
       ed.text('title', { label: 'Title', required: true, hint: 'Used in CMS lists, and publicly when no display name is set.', onInput: () => ed.updateSlugFromTitle?.() }),
+      ed.text('destinationType', { label: 'Destination type', placeholder: 'National Park' }),
       ed.text('displayName', { label: 'Display name (public)', hint: 'Optional public name if it should differ from the title.' }),
       ed.text('internalName', { label: 'Internal / stored name', hint: 'Optional staff-facing name, for example a legacy stored name. Not shown publicly.' }),
       ed.text('order', { label: 'Order', inputmode: 'numeric', placeholder: 'e.g. 10', hint: 'Optional whole number for manual list ordering (lower first). Proposed field.' })),

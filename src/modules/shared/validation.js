@@ -1,7 +1,7 @@
 // Draft and semantic publication validation. Draft saves accept incomplete content but reject malformed
 // supplied values; publication additionally enforces the proposed per-kind minimums from the specification.
 import { findRouteConflict, routeClaims, slugFormatMessage } from './routes.js';
-import { pricingIssues } from './pricing.js';
+import { amountMessage, isSupportedCurrency, pricingIssues } from './pricing.js';
 import { KIND_LABELS, TAXONOMY_NAMESPACES, assetRefs, publicName, relationRefs, taxonomyRefs } from './records.js';
 import { termReference } from './taxonomy.js';
 import { durationIssues } from './day-trips.js';
@@ -146,6 +146,17 @@ function checkKindDraft(record, issues) {
     caseOnlyDuplicates(record.activities, 'activities', 'Activities', issues);
   }
   if (record.kind === 'tour') {
+    const rateKeys = new Set();
+    for (const [index, rate] of (Array.isArray(record.publicRates) ? record.publicRates : []).entries()) {
+      if (!rate || typeof rate.amount !== 'string') continue;
+      const path = `publicRates.${index}`;
+      const key = JSON.stringify([rate.residency, rate.traveller, rate.season, rate.currency]).toLowerCase();
+      if (rateKeys.has(key)) issues.push(error(path + '.season', 'This rate already exists.'));
+      rateKeys.add(key);
+      if (!isSupportedCurrency(rate.currency)) issues.push(error(path + '.currency', 'Enter a supported currency code.'));
+      const problem = amountMessage(rate.amount, rate.currency);
+      if (problem) issues.push(error(path + '.amount', problem));
+    }
     issues.push(...pricingIssues(record.pricing, { publish: false }).filter(i => i.severity === 'error'));
     caseOnlyDuplicates(record.inclusions, 'inclusions', 'Inclusions', issues);
     caseOnlyDuplicates(record.exclusions, 'exclusions', 'Exclusions', issues);

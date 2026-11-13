@@ -250,6 +250,7 @@
         "kind": {
           "const": "foundation"
         },
+        "impactId": { "type": "string" },
         "title": {
           "type": "string"
         },
