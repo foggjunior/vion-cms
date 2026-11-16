@@ -1,13 +1,13 @@
 import {routeClaims} from '../modules/shared/routes.js';
 import {STORES,request,runTransaction} from '../storage/idb.js';
-import {DEFINITIONS,keyOf,newDocument,validateDocument,routeOf,documentAssets,REVIEW_PREFIX} from './model.js';
+import {DEFAULT_BLOG_CATEGORIES,DEFINITIONS,keyOf,newDocument,validateDocument,routeOf,documentAssets,REVIEW_PREFIX} from './model.js';
 export function createReviewRepository(ws){
  const all=async tx=>(await request(tx.objectStore(STORES.meta).getAll())).filter(e=>e.key.startsWith(REVIEW_PREFIX)).map(e=>e.value);
  const write=work=>runTransaction(ws.db,[STORES.meta,STORES.assets,STORES.assetBlobs,STORES.published,STORES.records,STORES.redirects],'readwrite',async tx=>{const value=await work(tx);ws.faults.check('review.write');return value;});
  async function checks(record,rows,tx,publish=false){const problems=validateDocument(record,{publish});const route=routeOf(record.kind,record);if(route){for(const row of rows)if(row.id!==record.id&&(routeOf(row.kind,row.record)===route||(row.routeHistory||[]).includes(route)))problems.push('This address is reserved by another page.');const core=await request(tx.objectStore(STORES.published).getAll()),drafts=await request(tx.objectStore(STORES.records).getAll()),redirects=await request(tx.objectStore(STORES.redirects).getAll());const claims=routeClaims({records:new Map(drafts.map(x=>[x.id,x])),published:new Map(core.map(x=>[x.id,x])),redirects});if(claims.has(route))problems.push('This address is already reserved by catalogue content or its route history.');}
  for(const id of documentAssets(record)){if(!await request(tx.objectStore(STORES.assets).get(id)))problems.push('Selected image no longer exists.');if(publish&&!await request(tx.objectStore(STORES.assetBlobs).get(id)))problems.push('Restore the selected image file before publishing.');}
  if(record.kind==='foundation'&&record.impactId&&!rows.some(row=>row.kind==='impact'&&row.id===record.impactId))problems.push('Select an existing impact story.');
- if(record.kind==='blog'&&record.categoryId){const category=rows.find(x=>x.id===record.categoryId&&x.kind==='blogCategory');if(!category)problems.push('Select an existing blog category.');else if(publish&&!category.published)problems.push('Publish the category before publishing this article.');}
+ if(record.kind==='blog'&&record.categoryId&&!DEFAULT_BLOG_CATEGORIES.some(category=>category.id===record.categoryId)){const category=rows.find(x=>x.id===record.categoryId&&x.kind==='blogCategory');if(!category)problems.push('Select an existing blog category.');else if(publish&&!category.published)problems.push('Publish the category before publishing this article.');}
  if(publish&&record.kind==='migration'){const taken=new Set(rows.filter(x=>x.id!==record.id&&x.kind==='migration'&&x.published).flatMap(x=>x.published.months));if(record.months.some(x=>taken.has(x)))problems.push('A month is already assigned to another published phase.');}
  if(problems.length)throw new Error(problems.join(' '));}
  const repo={

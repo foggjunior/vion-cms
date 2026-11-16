@@ -8,6 +8,12 @@ import { slugify } from './src/modules/shared/routes.js';
 import { CONTENT_ROUTES, createView, parseRoute } from './src/modules/registry.js';
 
 window.__vionBooted = true;
+if (document.querySelector('script[src="/approved/account-hooks.js"]')) {
+  fetch('/api/auth/session').then(response => response.ok ? response.json() : null).then(session => {
+    if (session?.actor?.role !== 'admin') return;
+    document.getElementById('navigation').append(linkButton('Finance', '/finance', {iconName:'file'}));
+  }).catch(() => {});
+}
 document.addEventListener('cms-action-error', event => {
   toast(event.detail?.message || 'The action could not be completed.', { tone: 'error' });
 });

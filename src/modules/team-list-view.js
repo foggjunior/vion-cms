@@ -196,6 +196,7 @@ export async function createTeamListView({ app, params }) {
 
   const offEvents = ws.events.on(event => { if (event.remote) reload(); });
   const el = h('div', { class: 'list-view team-list' },
+    ws.actor?.role === 'admin' ? linkButton('Manage CMS users and permissions', '/staff') : null,
     h('div', { class: 'view-head' },
       h('div', null, h('div', { class: 'eyebrow' }, 'SETTINGS'), h('h1', { tabindex: '-1' }, 'Team'),
         h('p', { class: 'view-intro' }, 'Public team profiles for the local team page. Profiles are not staff accounts: they have no login and grant no permissions.')),

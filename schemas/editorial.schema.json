@@ -32,6 +32,12 @@
         "publishDate": {
           "type": "string"
         },
+        "gallery": {
+          "type": "array",
+          "items": { "type": "object", "required": ["assetId", "alt"],
+            "properties": { "assetId": { "type": "string" }, "alt": { "type": "string" } },
+            "additionalProperties": false }
+        },
         "excerpt": {
           "type": "string"
         },
@@ -65,7 +71,6 @@
         "categoryId",
         "topics",
         "publishDate",
-        "excerpt",
         "body",
         "coverAssetId",
         "imageAlt",
