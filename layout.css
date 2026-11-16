@@ -301,3 +301,5 @@ button[aria-busy="true"] > svg { display: none; }
   .skeleton-bar { animation: cms-skeleton-pulse 1.3s ease-in-out infinite alternate; }
 }
 @keyframes cms-skeleton-pulse { to { opacity: .55; } }
+
+.nav-page-link { text-decoration: none; }

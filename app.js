@@ -8,12 +8,6 @@ import { slugify } from './src/modules/shared/routes.js';
 import { CONTENT_ROUTES, createView, parseRoute } from './src/modules/registry.js';
 
 window.__vionBooted = true;
-if (document.querySelector('script[src="/approved/account-hooks.js"]')) {
-  fetch('/api/auth/session').then(response => response.ok ? response.json() : null).then(session => {
-    if (session?.actor?.role !== 'admin') return;
-    document.getElementById('navigation').append(linkButton('Finance', '/finance', {iconName:'file'}));
-  }).catch(() => {});
-}
 document.addEventListener('cms-action-error', event => {
   toast(event.detail?.message || 'The action could not be completed.', { tone: 'error' });
 });
@@ -25,6 +19,19 @@ const moduleIndexFor = label => modules.findIndex(m => m[2].includes(label));
 const hashFor = (label, index = moduleIndexFor(label)) => (label==='Add Post'&&index===12?'#/migration/new':CONTENT_ROUTES[label]) || `#/section/${index}/${slugify(label)}`;
 const nav=document.getElementById('navigation');
 modules.forEach(([label,i,children],n)=>{if (['Messages','Email Subscribers','Vehicles'].includes(label)) return; const group=document.createElement('div');group.className='nav-group';group.innerHTML=`<button class="nav-toggle ${n===0?'active':''}" data-module="${n}" ${children.length?`aria-expanded="false" aria-controls="submenu-${n}"`:'aria-current="page"'}>${icon(i)}<span>${label}</span>${children.length?'<span class="chevron">⌄</span>':''}</button>${children.length?`<div class="submenu" id="submenu-${n}" hidden>${children.map(c=>`<button data-child="${n}" data-href="${hashFor(c,n)}">${c}</button>`).join('')}</div>`:''}`;nav.appendChild(group)});
+// The authenticated workspace supplies these links after checking the staff role.
+function workspaceLink(name, label, iconName) {
+  const href = document.querySelector(`meta[name="cms-${name}-link"]`)?.content;
+  if (!href) return null;
+  return h('a', { href, class: 'nav-toggle nav-page-link', title: label, 'aria-label': label },
+    iconEl(iconName), h('span', null, label));
+}
+
+const usersLink = workspaceLink('users', 'Users', 'users');
+if (usersLink) nav.querySelector('[data-href="#/users"]').closest('.nav-group').replaceChildren(usersLink);
+const financeLink = workspaceLink('finance', 'Finance', 'file');
+if (financeLink) nav.firstElementChild.after(h('div', { class: 'nav-group' }, financeLink));
+
 // ---- Shell state ----
 const el = id => document.getElementById(id);
 const dashboardEl = el('dashboard'), placeholderEl = el('modulePreview'), moduleRoot = el('moduleRoot'), pageHeading = document.querySelector('.page-heading'), previewNote = el('previewNote');
