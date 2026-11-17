@@ -161,7 +161,7 @@ export function writingPreview(text,{sectionLevel=2,scope}={}) {
   return finish();
 }
 
-export function mountWritingEditor(control, {readOnly = false, scope, pickImage} = {}) {
+export function mountWritingEditor(control, {readOnly = false, scope, pickImage, imageSections = false} = {}) {
   const id = control.id;
   const editor = h('div', {
     id, class:'rich-writing-area', contenteditable: String(!readOnly),
@@ -275,6 +275,45 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage}
       'aria-label':label,title:label,on:{change:event=>command(name,event.target.value)}});
     toolbar.append(h('label',{class:'writing-colour '+className,title:label},'A',input));
   }
+  if (pickImage && imageSections) tool('Add image section','Add image section',async()=>{
+    const [asset] = await pickImage({title:'Choose a section image'}) || [];
+    if (!asset || !editor.isConnected) return;
+    const heading = h('input',{class:'input',type:'text',maxLength:250,required:true});
+    const alt = h('input',{class:'input',type:'text',value:asset.alt||'',maxLength:500,required:true});
+    const caption = h('input',{class:'input',type:'text',maxLength:500});
+    const paragraphs = h('textarea',{class:'input',rows:8,required:true});
+    const fields = h('div',null,
+      h('p',null,'Adds a new section at the end of this article. You can edit its text and formatting afterwards.'),
+      h('label',{class:'field'},'Section heading (H2)',heading),
+      h('label',{class:'field'},'Image alt text',alt),
+      h('label',{class:'field'},'Caption (optional)',caption),
+      h('label',{class:'field'},'Paragraphs',paragraphs));
+    const section = await openDialog({title:'Add image section',content:fields,actions:[
+      {label:'Cancel'},
+      {label:'Add section',variant:'primary',onClick:close=>{
+        for (const input of [heading,alt,paragraphs]) {
+          input.setCustomValidity(input.value.trim() ? '' : 'Complete this field.');
+          if (!input.reportValidity()) return;
+        }
+        close({heading:heading.value.trim(),alt:alt.value.trim(),
+          caption:caption.value.trim(),paragraphs:paragraphs.value.trim()});
+      }}
+    ]}).result;
+    if (!section || !editor.isConnected) return;
+    const figure = h('figure',{'data-asset-id':asset.id,'data-alt':section.alt},
+      section.caption ? h('figcaption',null,section.caption) : null);
+    editor.append(h('h2',null,section.heading),figure,
+      ...section.paragraphs.split(/\n\s*\n/).map(text=>h('p',null,text)));
+    showPhotos(editor,scope,removePhoto);
+    editor.focus();
+    const selection = window.getSelection();
+    const end = document.createRange();
+    end.selectNodeContents(editor);
+    end.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(end);
+    sync();
+  });
   if (pickImage) tool('Insert photo','Photo',async()=>{
     const [asset] = await pickImage({title:'Choose an inline photo'}) || [];
     if (!asset || !editor.isConnected) return;

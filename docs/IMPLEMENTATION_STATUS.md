@@ -463,3 +463,6 @@ Verified in Chrome: 81 unit checks, 55 existing E2E checks and 14 new operationa
 
 
 Blog compatibility fix, 17 November 2026. Existing blog drafts and backups may retain an optional text excerpt. The shared validator accepts that legacy field for saving, publishing and importing, while the blog editor continues to omit the excerpt input.
+
+
+Blog image sections, 17 November 2026. The blog Article toolbar includes Add image section. Staff choose an image, enter an H2 heading, alt text, optional caption and paragraphs. The section is appended to the existing article body using the established rich-text format, so media references, publishing and the public website use the existing inline-image flow. Existing content stays editable. Changes target development.
