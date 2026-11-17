@@ -460,3 +460,6 @@ Implemented private park/general STO/room-category rate cards, daily tour cost t
 Open Bookings > Quotation, All Bookings or Connect website. Content editors have Private rates / STO or Costs (internal) tabs after saving a record. General backups exclude operational records: export the separate private backup from Quotations. The website source D:/viona-africa was inspected read-only; no live sign-in/read/write was performed. The connector still requires an authorised existing Firebase staff:true account and matching deployed rules. Live tour IDs need explicit local catalogue matching.
 
 Verified in Chrome: 81 unit checks, 55 existing E2E checks and 14 new operational E2E assertions passed. Fixed waiting assumptions in the existing UI tests; no remaining failed check in the final runs. Bundled Chromium was unavailable; these counts are Chrome only. Nothing committed, pushed or deployed.
+
+
+Blog compatibility fix, 17 November 2026. Existing blog drafts and backups may retain an optional text excerpt. The shared validator accepts that legacy field for saving, publishing and importing, while the blog editor continues to omit the excerpt input.

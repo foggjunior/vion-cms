@@ -23,7 +23,13 @@ export function newDocument(key){const def=DEFINITIONS[key],r={id:crypto.randomU
 export function documentAssets(r){return [...new Set([r?.coverAssetId,...(Array.isArray(r?.gallery)?r.gallery.map(image=>image?.assetId):[]),...writingAssetIds(r?.body)].filter(Boolean))];}
 export function validateDocument(r,{publish=false,existingSnapshot=false}={}){
  const key=keyOf(r.kind),d=DEFINITIONS[key],errors=[];if(!d)return ['Unknown module.'];
- const allowed=new Set(['id','kind',...d.fields.map(f=>f.key)]);for(const name of Object.keys(r))if(!allowed.has(name))errors.push('Unexpected field: '+name);
+ // Older blog drafts and backups retain their summary even though the editor no longer asks for it.
+ const allowed=new Set(['id','kind',...d.fields.map(f=>f.key)]);
+ if(r.kind==='blog'){
+  allowed.add('excerpt');
+  if(r.excerpt!==undefined&&typeof r.excerpt!=='string')errors.push('Excerpt must be text.');
+ }
+ for(const name of Object.keys(r))if(!allowed.has(name))errors.push('Unexpected field: '+name);
  if(!/^[0-9a-f-]{36}$/i.test(r.id))errors.push('Invalid record ID.');
  for(const field of d.fields){const v=r[field.key];if(field.optional&&v===undefined)continue;if(field.type==='gallery'){if(!Array.isArray(v)||v.length>30||v.some(image=>!image||typeof image.assetId!=='string'||!image.assetId||typeof image.alt!=='string'||(publish&&!image.alt.trim())))errors.push('Additional images need a valid placement and alt text to publish.');continue;}if(['lines','sections','links'].includes(field.type)){if(!Array.isArray(v))errors.push(field.label+' must be a list.');else if(field.type==='lines'&&v.some(x=>typeof x!=='string'))errors.push(field.label+' must contain text only.');}else if(field.type==='checkbox'){if(typeof v!=='boolean')errors.push(field.label+' must be true or false.');}else if(typeof v!=='string')errors.push(field.label+' must be text.');}
  for(const field of d.fields.filter(x=>x.type==='select'))if(!field.options.includes(r[field.key]))errors.push('Choose a valid '+field.label.toLowerCase()+'.');
