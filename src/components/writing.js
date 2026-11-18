@@ -177,7 +177,7 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
   control.removeAttribute('id');
   control.hidden = true;
   const toolbar = h('div', {class:'writing-toolbar', role:'group', 'aria-label':'Writing formatting', hidden:readOnly});
-  control.before(h('div',{class:'rich-writing-editor'},toolbar,editor));
+  control.before(h('div',{class:imageSections ? 'rich-writing-editor blog-writing-editor' : 'rich-writing-editor'},toolbar,editor));
   if (readOnly) return;
 
   let range;
