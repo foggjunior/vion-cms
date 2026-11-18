@@ -7,22 +7,31 @@ import { ACCEPT_ATTRIBUTE, MEDIA_LIMITS, inspectImageFile } from '../storage/med
 import { formatBytes } from '../modules/shared/format.js';
 import { LOW_RESOLUTION_WIDTH } from '../modules/shared/validation.js';
 
-// Uploads files after inspection. Returns { added: asset[], results: [{ fileName, ok, errors, warnings }] }.
-export async function uploadFiles(workspace, files) {
-  const added = [];
-  const results = [];
-  for (const file of files) {
-    const inspected = await inspectImageFile(file);
-    if (!inspected.ok) { results.push({ fileName: file.name, ok: false, errors: inspected.errors, warnings: inspected.warnings }); continue; }
-    try {
-      const asset = await workspace.media.add(inspected, { alt: '' });
-      added.push(asset);
-      results.push({ fileName: file.name, ok: true, errors: [], warnings: inspected.warnings });
-    } catch (err) {
-      results.push({ fileName: file.name, ok: false, errors: [err.message], warnings: [] });
+// Uploads files after inspection. Returns { added: asset[], results: [{ fileName, ok, errors, warnings }] },
+// both in the order the files were chosen. The shared cloud workspace transfers up to three files at once;
+// the local preview stores them one after another.
+export async function uploadFiles(workspace, files, { concurrency = workspace.remote ? 3 : 1 } = {}) {
+  const outcomes = new Array(files.length);
+  let next = 0;
+  async function worker() {
+    while (next < files.length) {
+      const index = next++;
+      const file = files[index];
+      const inspected = await inspectImageFile(file);
+      if (!inspected.ok) { outcomes[index] = { fileName: file.name, ok: false, errors: inspected.errors, warnings: inspected.warnings }; continue; }
+      try {
+        const asset = await workspace.media.add(inspected, { alt: '' });
+        outcomes[index] = { fileName: file.name, ok: true, errors: [], warnings: inspected.warnings, asset };
+      } catch (err) {
+        outcomes[index] = { fileName: file.name, ok: false, errors: [err.message], warnings: [] };
+      }
     }
   }
-  return { added, results };
+  await Promise.all(Array.from({ length: Math.min(concurrency, files.length) }, worker));
+  return {
+    added: outcomes.filter(outcome => outcome.asset).map(outcome => outcome.asset),
+    results: outcomes.map(({ asset, ...result }) => result)
+  };
 }
 
 export async function runImageUpload(input, workspace, results, refresh) {

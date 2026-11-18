@@ -21,6 +21,8 @@ function content(ed) {
   return [
     ed.group(null,
       ed.text('overview', { label: 'Overview', required: 'publish', multiline: true, rows: 8, hint: 'Plain text. Separate paragraphs with a blank line.' }),
+      ed.text('highlights', { label: 'Highlights', multiline: true, rows: 4, hint: 'Shown on the website as “Why Visit · Highlights”. Put each highlight on its own line. Write “Title: description” for a bold title, or start a line with “- ” for a bullet.' }),
+      ed.text('signatureExperiences', { label: 'Signature experiences', multiline: true, rows: 4, hint: 'Shown on the website as “Only Here · Signature Experiences”. Put each experience on its own line, for example “Hot-air balloon safari: Float over the plains at sunrise.”' }),
       ed.text('bestTime', { label: 'Best time to visit', required: 'publish', multiline: true, rows: 3 }),
       ed.text('wildlife', { label: 'Wildlife (optional)', multiline: true, rows: 4 }))
   ];

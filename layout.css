@@ -304,13 +304,38 @@ button[aria-busy="true"] > svg { display: none; }
 
 .nav-page-link { text-decoration: none; }
 
-/* Keep blog formatting available throughout the article, including on phones. */
+.review-module:has(.blog-writing-editor) > .editor-bar { position: static; }
+:is(.rich-writing-area, .formatted-writing) h1 { font-size: 1.6em; font-weight: 750; }
+.article-section-photos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.article-section-photos > figure { margin: 0; min-width: 0; }
+/* A single photo, or the last of an odd number, uses the full width. Pairs share one crop. */
+.article-section-photos > figure:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.article-section-photos .writing-photo-image { aspect-ratio: 3 / 2; }
+.article-section-photos .writing-photo-image img { height: 100%; object-fit: cover; }
+@media (max-width: 640px) {
+  .article-section-photos { grid-template-columns: 1fr; }
+}
+
 .blog-writing-editor .writing-toolbar {
   position: sticky;
   top: 0;
   z-index: 21;
-  background: #fff;
+  background: #fbf2da;
+  border-bottom-color: #dfc78d;
   box-shadow: 0 3px 8px rgb(0 0 0 / 8%);
+}
+.blog-writing-editor .writing-toolbar :is(.btn, select, .writing-colour) {
+  border-color: #decfab;
+}
+@media (max-height: 550px) {
+  .blog-writing-editor .writing-toolbar { flex-wrap: nowrap; overflow-x: auto; }
+  .blog-writing-editor .writing-toolbar > * { flex: none; }
 }
 @media print {
   .blog-writing-editor .writing-toolbar { display: none; }

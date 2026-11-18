@@ -1,9 +1,10 @@
+import {composeBlogSection} from './blog-section.js';
 import {button,h} from './dom.js';
 import {messageDialog,openDialog} from './dialog.js';
 import {assetImage} from './media.js';
 
 const richPrefix = '@vion-rich:';
-const richTags = new Set(['p','div','h2','h3','strong','b','em','i','u','s','strike','del','span','font','ol','ul','li','a','blockquote','br']);
+const richTags = new Set(['p','div','h1','h2','h3','strong','b','em','i','u','s','strike','del','span','font','ol','ul','li','a','blockquote','br']);
 
 const assetIdPattern = '[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}';
 
@@ -38,6 +39,13 @@ function richFragment(html, sectionLevel) {
       hasSection = true;
     }
     const element = h(outputTag, tag === 'a' ? {href:node.getAttribute('href')} : null, children);
+    if (tag === 'div' && node.classList.contains('article-section-photos')) {
+      element.className = 'article-section-photos';
+    }
+    if (['p','div','h1','h2','h3','li','blockquote'].includes(tag)) {
+      const alignment = node.style.textAlign || node.getAttribute('align');
+      if (['left','center','right','justify'].includes(alignment)) element.style.textAlign = alignment;
+    }
     for (const property of ['color','backgroundColor','fontWeight','fontStyle','textDecorationLine']) {
       const value = property === 'color' && tag === 'font' ? node.getAttribute('color') : node.style[property];
       if (value && (property === 'color' || property === 'backgroundColor'
@@ -57,17 +65,19 @@ export function writingPlainText(text) {
   const value = String(text || '');
   if (!value.startsWith(richPrefix)) return value;
   const fragment = richFragment(value.slice(richPrefix.length));
-  for (const block of fragment.querySelectorAll('p,div,h2,h3,li,blockquote,br')) block.after(' ');
+  for (const block of fragment.querySelectorAll('p,div,h1,h2,h3,li,blockquote,br')) block.after(' ');
   return fragment.textContent.replace(/\s+/g, ' ').trim();
 }
 
-export function sectionHeadings(text) {
+export function sectionHeadings(text, {allLevels = false} = {}) {
   if (String(text || '').startsWith(richPrefix)) {
-    return [...text.matchAll(/<h2(?:\s[^>]*)?>([\s\S]*?)<\/h2>/gi)]
-      .map(match => match[1].replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()).filter(Boolean);
+    const headings = /<(h[1-3])(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi;
+    return [...text.matchAll(headings)].filter(match=>allLevels || match[1].toLowerCase()==='h2')
+      .map(match=>match[2].replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim()).filter(Boolean);
   }
-  return String(text||'').split(/\r?\n/).flatMap(line=>{
-    const match=line.match(/^ {0,3}##[ \t]+(.+?)\s*$/);
+  const headings = allLevels ? /^ {0,3}#{1,3}[ \t]+(.+?)\s*$/ : /^ {0,3}##[ \t]+(.+?)\s*$/;
+  return String(text || '').split(/\r?\n/).flatMap(line=>{
+    const match = line.match(headings);
     return match ? [match[1].trim()] : [];
   }).filter(Boolean);
 }
@@ -111,7 +121,7 @@ function showPhotos(root, scope, remove) {
   }
 }
 
-export function writingPreview(text,{sectionLevel=2,scope}={}) {
+export function writingPreview(text,{sectionLevel=2,scope,preserveHeadings=false}={}) {
   const result=h('div',{class:'prose formatted-writing'});
   function finish() {
     for (const link of result.querySelectorAll('a[href]')) {
@@ -130,7 +140,7 @@ export function writingPreview(text,{sectionLevel=2,scope}={}) {
     return result;
   }
   if (String(text || '').startsWith(richPrefix)) {
-    result.append(richFragment(text.slice(richPrefix.length), sectionLevel));
+    result.append(richFragment(text.slice(richPrefix.length), preserveHeadings ? undefined : sectionLevel));
     showPhotos(result,scope);
     return finish();
   }
@@ -141,13 +151,13 @@ export function writingPreview(text,{sectionLevel=2,scope}={}) {
   };
   for(const raw of String(text||'').split(/\r?\n/)){
     const line=raw.trim();
-    const heading=line.match(/^(##|###)\s+(.+)$/);
+    const heading=line.match(preserveHeadings ? /^(#{1,3})\s+(.+)$/ : /^(##|###)\s+(.+)$/);
     const item=line.match(/^(-|\d+\.)\s+(.+)$/);
     if(!line){flush();continue;}
     if(heading){
       flush();
       const nested=heading[1]==='###'&&hasSection;
-      result.append(h('h'+(sectionLevel+Number(nested)),null,inline(heading[2])));
+      result.append(h('h'+(preserveHeadings ? heading[1].length : sectionLevel+Number(nested)),null,inline(heading[2])));
       hasSection=true;
     }else if(item){
       const tag=item[1]==='-'?'ul':'ol';
@@ -170,7 +180,7 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
     'aria-readonly':String(readOnly), tabindex:0
   });
   if (control.value.startsWith(richPrefix)) editor.append(richFragment(control.value.slice(richPrefix.length)));
-  else editor.append(...writingPreview(control.value).childNodes);
+  else editor.append(...writingPreview(control.value,{preserveHeadings:imageSections}).childNodes);
   showPhotos(editor,scope,readOnly ? null : removePhoto);
   const field = control.closest('.field');
   field.querySelector('label').id = id+'-label';
@@ -187,7 +197,7 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
       range = selection.getRangeAt(0).cloneRange();
       const start = range.startContainer;
       const element = start.nodeType === Node.ELEMENT_NODE ? start : start.parentElement;
-      styles.value = element.closest('h2,h3')?.localName || 'p';
+      styles.value = element.closest(imageSections ? 'h1,h2,h3' : 'h2,h3')?.localName || 'p';
     }
   }
   function sync() {
@@ -198,7 +208,9 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
     rememberSelection();
   }
   function removePhoto(figure) {
+    const group = figure.parentElement?.closest('.article-section-photos');
     figure.remove();
+    if (group && !group.querySelector('figure')) group.remove();
     editor.focus();
     sync();
   }
@@ -226,8 +238,9 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
 
   const styles = h('select',{'aria-label':'Paragraph style',on:{change:event=>command('formatBlock',event.target.value)}},
     h('option',{value:'p'},'Normal'),
-    h('option',{value:'h2'},'Heading'),
-    h('option',{value:'h3'},'Subheading'));
+    imageSections ? h('option',{value:'h1'},'H1') : null,
+    h('option',{value:'h2'},imageSections ? 'H2' : 'Heading'),
+    h('option',{value:'h3'},imageSections ? 'H3' : 'Subheading'));
   toolbar.append(styles);
   function tool(label, symbol, action, className = '') {
     const item = button(symbol,{'aria-label':label,title:label,class:className,onClick:action});
@@ -239,6 +252,11 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
     ['Underline','U','underline','writing-underline'], ['Strikethrough','S','strikeThrough','writing-strike'],
     ['Numbered list','≡','insertOrderedList','writing-numbered'], ['Bulleted list','☷','insertUnorderedList','writing-bullets']
   ]) tool(label,symbol,()=>command(name),className);
+  if (imageSections) {
+    for (const [label,alignment] of [['Align left','Left'],['Center text','Center'],['Align right','Right'],['Justify text','Full']]) {
+      tool(label,alignment === 'Full' ? 'Justify' : alignment,()=>command('justify'+alignment));
+    }
+  }
   tool('Link','↗',async()=>{
     const selected = range?.cloneRange();
     if (!selected || !editor.contains(selected.commonAncestorContainer) || !selected.toString().trim()) {
@@ -275,35 +293,11 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
       'aria-label':label,title:label,on:{change:event=>command(name,event.target.value)}});
     toolbar.append(h('label',{class:'writing-colour '+className,title:label},'A',input));
   }
-  if (pickImage && imageSections) tool('Add image section','Add image section',async()=>{
-    const [asset] = await pickImage({title:'Choose a section image'}) || [];
-    if (!asset || !editor.isConnected) return;
-    const heading = h('input',{class:'input',type:'text',maxLength:250,required:true});
-    const alt = h('input',{class:'input',type:'text',value:asset.alt||'',maxLength:500,required:true});
-    const caption = h('input',{class:'input',type:'text',maxLength:500});
-    const paragraphs = h('textarea',{class:'input',rows:8,required:true});
-    const fields = h('div',null,
-      h('p',null,'Adds a new section at the end of this article. You can edit its text and formatting afterwards.'),
-      h('label',{class:'field'},'Section heading (H2)',heading),
-      h('label',{class:'field'},'Image alt text',alt),
-      h('label',{class:'field'},'Caption (optional)',caption),
-      h('label',{class:'field'},'Paragraphs',paragraphs));
-    const section = await openDialog({title:'Add image section',content:fields,actions:[
-      {label:'Cancel'},
-      {label:'Add section',variant:'primary',onClick:close=>{
-        for (const input of [heading,alt,paragraphs]) {
-          input.setCustomValidity(input.value.trim() ? '' : 'Complete this field.');
-          if (!input.reportValidity()) return;
-        }
-        close({heading:heading.value.trim(),alt:alt.value.trim(),
-          caption:caption.value.trim(),paragraphs:paragraphs.value.trim()});
-      }}
-    ]}).result;
+  if (pickImage && imageSections) tool('Add article section','Add section',async()=>{
+    const section = await composeBlogSection({pickImage,scope});
     if (!section || !editor.isConnected) return;
-    const figure = h('figure',{'data-asset-id':asset.id,'data-alt':section.alt},
-      section.caption ? h('figcaption',null,section.caption) : null);
-    editor.append(h('h2',null,section.heading),figure,
-      ...section.paragraphs.split(/\n\s*\n/).map(text=>h('p',null,text)));
+    if (!editor.textContent.trim() && !editor.querySelector('figure')) editor.replaceChildren();
+    editor.append(section);
     showPhotos(editor,scope,removePhoto);
     editor.focus();
     const selection = window.getSelection();
@@ -348,7 +342,7 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
     command('removeFormat');
     command('unlink');
     const tag = String(document.queryCommandValue('formatBlock')).toLowerCase();
-    if (['h2','h3','blockquote'].includes(tag)) command('formatBlock','p');
+    if (['h1','h2','h3','blockquote'].includes(tag)) command('formatBlock','p');
     for (const list of ['insertOrderedList','insertUnorderedList']) {
       if (document.queryCommandState(list)) command(list);
     }

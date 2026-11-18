@@ -35,6 +35,28 @@ function prose(text) {
   return h('div', { class: 'prose' }, paragraphs(text).map(p => h('p', null, p)));
 }
 
+// Line-based destination copy, rendered the way the public destination page does: each line is a
+// paragraph, lines starting with "-", "*" or "•" form a list, and a short "Title:" lead-in is bold.
+function lineCopy(text) {
+  const labelled = line => {
+    const match = line.match(/^([^:.!?]{2,40}):\s+(\S.*)$/);
+    return match ? [h('strong', null, match[1] + ':'), ' ' + match[2]] : line;
+  };
+  const result = h('div', { class: 'prose' });
+  let list = null;
+  for (const line of String(text || '').split(/\n+/).map(value => value.trim()).filter(Boolean)) {
+    const bullet = line.match(/^[•\-*–]\s+(.+)$/);
+    if (bullet) {
+      if (!list) { list = h('ul', { class: 'preview-list' }); result.append(list); }
+      list.append(h('li', null, labelled(bullet[1])));
+    } else {
+      list = null;
+      result.append(h('p', null, labelled(line)));
+    }
+  }
+  return result;
+}
+
 function refList(ids, resolver, linkFor, { separator = null } = {}) {
   const items = ids.map(id => {
     const ref = resolver.record(id);
@@ -101,6 +123,8 @@ function destinationBody(record) {
   return [
     section('Overview', prose(record.overview) || null),
     record.wildlife ? section('Wildlife', prose(record.wildlife)) : null,
+    record.highlights?.trim() ? section('Highlights', lineCopy(record.highlights)) : null,
+    record.signatureExperiences?.trim() ? section('Signature Experiences', lineCopy(record.signatureExperiences)) : null,
     section('Activities', list(record.activities)),
     section('Best time to visit', record.bestTime ? prose(record.bestTime) : h('p', { class: 'muted' }, 'Not provided.')),
     section('Travel tips', tips)

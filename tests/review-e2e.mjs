@@ -6,7 +6,7 @@ let checks=0;const errors=[];page.on('pageerror',e=>errors.push(e.message));
 function ok(v,label){if(!v)throw new Error(label);checks++;console.log('PASS',label);}
 async function open(hash){await page.goto(base+'/'+hash);await page.waitForFunction(h=>{const r=document.getElementById('moduleRoot');return r?.dataset.ready==='true'&&r.dataset.renderedRoute===h;},hash);}
 async function save(){await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.review-save-status')?.textContent.startsWith('Saved'));}
-async function publish(){await page.getByRole('button',{name:'Publish',exact:true}).click();const d=page.locator('dialog[open]');await d.getByRole('button',{name:'Publish',exact:true}).click();await page.getByText('Published locally',{exact:true}).waitFor();}
+async function publish(){await page.getByRole('button',{name:'Publish',exact:true}).click();const d=page.locator('dialog[open]');await d.getByRole('button',{name:'Publish',exact:true}).click();await page.getByText('Published locally',{exact:true}).waitFor();const popup=page.getByRole('dialog',{name:'Article published'});if(await popup.count())await popup.getByRole('button',{name:'OK',exact:true}).click();}
 async function fillField(key,value){
  const control=page.locator('#review-'+key);
  if(!await control.evaluate(node=>node.isContentEditable)){await control.fill(value);return;}

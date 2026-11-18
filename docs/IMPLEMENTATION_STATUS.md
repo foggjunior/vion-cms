@@ -1,3 +1,15 @@
+# 18 November 2026 — blog article sections, destination highlights, faster images
+
+Current status for this work; resume from [CONTINUATION.md](../CONTINUATION.md).
+
+- **Blog Article editor:** only the formatting toolbar stays pinned while scrolling. The title/Save/Publish bar no longer sticks on blog editors. The toolbar has a pale background and offers Normal, H1, H2 and H3, plus Left, Center, Right and Justify alignment. **Add section** opens a composer with heading level, heading, paragraph text, supporting photos (two sit side by side and stack on phones) and optional text after the photos. Previews and the public site keep the writer's heading levels and alignment. Publishing requires three distinct H1–H3 headings for blogs.
+- **Publish popup:** publishing a blog post shows an **Article published** dialog with the article title and address.
+- **Destinations:** new optional **Highlights** and **Signature experiences** fields on the Content tab (one item per line; "Title: description" shows a bold title). The public destination page's existing Highlights ("Why Visit") and Signature Experiences ("Only Here") sections now receive them. Activities are now mapped from the CMS too.
+- **Images:** in the shared workspace, images load as resized Cloudinary renditions (480/1000/1600px) through a cached redirect that reads one stored entry instead of the whole workspace. Large photos are resized in the browser to a 2560px long edge before upload. Three files upload at once, but finalize steps run one at a time. The server verifies the Cloudinary file and loads the snapshot in parallel. All existing upload checks remain.
+- **Fixed:** saving **My profile** failed with "toast is not a function" (missing import).
+
+Checks: 61 server tests, 50 cloud-UI workflow checks, 25 inline-accommodation checks, 94 local unit checks, 97 review checks and 92 public-website tests passed. `tests/e2e.mjs` has 2 failures and `tests/daily-costs-e2e.mjs` stops at one button-style check; both fail the same way on commit 7508e4b without these changes. `tests/operations-e2e.mjs` was not run (hard-wired to port 5173). All runs were isolated: no environment files, Firebase, Cloudinary or live site, and no Next build/dev. Nothing committed, pushed or deployed.
+
 # 11 November 2026 — rich-text editing
 
 Blog articles, impact stories, foundation profiles, tour overviews and accommodation descriptions use an inline formatting toolbar. Quick-add accommodation overviews also support formatting. Page titles supply the H1. Use Heading for sections and Subheading for topics inside them. Blogs, impact stories and foundation profiles require three distinct section headings for new publication. The excerpt is a short listing summary and can supply the search description when no explicit meta description is set.
@@ -465,4 +477,4 @@ Verified in Chrome: 81 unit checks, 55 existing E2E checks and 14 new operationa
 Blog compatibility fix, 17 November 2026. Existing blog drafts and backups may retain an optional text excerpt. The shared validator accepts that legacy field for saving, publishing and importing, while the blog editor continues to omit the excerpt input.
 
 
-Blog image sections, 17 November 2026. The blog Article toolbar includes Add image section. Staff choose an image, enter an H2 heading, alt text, optional caption and paragraphs. The section is appended to the existing article body using the established rich-text format, so media references, publishing and the public website use the existing inline-image flow. Existing content stays editable. Changes target development.
+Blog image sections, 17 November 2026 (historical; superseded on 18 November by the Add section composer described at the top of this document). The blog Article toolbar includes Add image section. Staff choose an image, enter an H2 heading, alt text, optional caption and paragraphs. The section is appended to the existing article body using the established rich-text format, so media references, publishing and the public website use the existing inline-image flow. Existing content stays editable. Changes target development.

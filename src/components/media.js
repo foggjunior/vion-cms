@@ -8,7 +8,10 @@ import { LOW_RESOLUTION_WIDTH } from '../modules/shared/validation.js';
 
 export class MediaUrlScope {
   constructor(media) { this.media = media; this.urls = new Map(); }
-  async url(assetId) {
+  // A workspace with `displayUrl` (the shared cloud workspace) serves resized images by URL, so the
+  // browser loads, caches and lazy-loads them itself. The local preview stores Blobs instead.
+  async url(assetId, { width } = {}) {
+    if (typeof this.media.displayUrl === 'function') return this.media.displayUrl(assetId, width);
     if (!this.urls.has(assetId)) {
       const blob = await this.media.getBlob(assetId);
       this.urls.set(assetId, blob ? URL.createObjectURL(blob) : null);
@@ -21,13 +24,25 @@ export class MediaUrlScope {
   }
 }
 
-export function assetImage(scope, assetId, { alt = '', className = '', asset } = {}) {
-  const box = h('div', { class: ['img-box', className] }, h('span', { class: 'img-loading' }, 'Loading image…'));
+// Display width requested for each kind of image box: small tiles, full-width covers, everything else.
+const THUMBNAIL_CLASSES = ['tile-img', 'library-img', 'media-thumb', 'review-thumb', 'share-thumb', 'card-img'];
+function displayWidthFor(className) {
+  const names = [className].flat().join(' ').split(/\s+/);
+  if (names.some(name => THUMBNAIL_CLASSES.includes(name))) return 480;
+  if (names.includes('review-cover')) return 1600;
+  return 1000;
+}
+
+export function assetImage(scope, assetId, { alt = '', className = '', asset, width = displayWidthFor(className) } = {}) {
+  const loading = h('span', { class: 'img-loading' }, 'Loading image…');
+  const box = h('div', { class: ['img-box', className] }, loading);
   const showMissing = text => { clear(box); box.classList.add('img-missing'); box.append(icon('alert'), h('span', null, text)); };
-  scope.url(assetId).then(url => {
+  scope.url(assetId, { width }).then(url => {
     if (!url) { showMissing(asset ? 'Image file missing in this browser' : 'Missing image asset'); return; }
-    clear(box);
-    box.append(h('img', { src: url, alt, loading: 'lazy', decoding: 'async' }));
+    const img = h('img', { src: url, alt, loading: 'lazy', decoding: 'async' });
+    img.addEventListener('load', () => loading.remove(), { once: true });
+    img.addEventListener('error', () => showMissing('Image could not be loaded'), { once: true });
+    box.append(img);
   }).catch(() => showMissing('Image could not be loaded'));
   return box;
 }

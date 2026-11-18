@@ -1,6 +1,6 @@
 import {h,button,linkButton,icon} from '../components/dom.js';
 import {fieldWrap,textControl} from '../components/fields.js';
-import {notice} from '../components/feedback.js';
+import {notice,toast} from '../components/feedback.js';
 import {createReviewRepository} from './repository.js';
 import {DEFINITIONS,keyOf} from './model.js';
 import {createBookingsRepository} from '../storage/bookings-repository.js';

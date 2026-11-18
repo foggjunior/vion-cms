@@ -155,6 +155,12 @@
         "overview": {
           "type": "string"
         },
+        "highlights": {
+          "type": "string"
+        },
+        "signatureExperiences": {
+          "type": "string"
+        },
         "wildlife": {
           "type": "string"
         },

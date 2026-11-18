@@ -24,7 +24,7 @@ const emptySeo = () => ({ title: '', description: '', shareAssetId: null, noinde
 
 export function newRecord(kind, { id = newId(), now = new Date().toISOString(), title = '' } = {}) {
   const base = { id, kind, title, slug: '', status: 'draft', createdAt: now, updatedAt: now, version: 1, schemaVersion: 1, cover: null, gallery: [], seo: emptySeo() };
-  if (kind === 'destination') return { ...base, internalName: '', displayName: '', overview: '', wildlife: '', activities: [], bestTime: '', travelTips: [] };
+  if (kind === 'destination') return { ...base, internalName: '', displayName: '', overview: '', wildlife: '', highlights: '', signatureExperiences: '', activities: [], bestTime: '', travelTips: [] };
   if (kind === 'accommodation') return {
     ...base, destinationId: null, locationName: '', noDestinationReason: '', type: '', standard: '', setting: 'unspecified', description: '',
     amenities: [], activities: [], publicPhone: '', publicPhoneVisible: false, website: '', publicPageEnabled: true

@@ -1,3 +1,5 @@
+> 18 November 2026: unfinished-task handoff and current verification are in [CONTINUATION.md](CONTINUATION.md). Read it first.
+>
 > 7 November 2026: the new server application is documented in [Cloud implementation](docs/CLOUD_IMPLEMENTATION.md). This document retains the approved browser-preview/history context.
 
 # Maintenance and release handoff prompt

@@ -68,3 +68,43 @@ export async function inspectImageFile(file, limits = MEDIA_LIMITS) {
   const blob = declared === type ? file : new Blob([file], { type });
   return { ok: errors.length === 0, errors, warnings, info, blob };
 }
+
+// Large camera photos are resized in the browser before a shared-workspace upload, so the transfer and
+// the server's verification handle far fewer bytes. The long edge is kept at 2560px (still well above
+// the 1200px recommendation). Smaller files are returned unchanged, as is anything the browser cannot
+// re-encode or that would not get smaller. Orientation is applied from the photo's EXIF data and other
+// metadata (such as GPS position) is not carried over.
+export const UPLOAD_MAX_EDGE = 2560;
+export const UPLOAD_OPTIMIZE_BYTES = 2.5 * 1024 * 1024;
+
+export async function optimizeForUpload(inspected, { maxEdge = UPLOAD_MAX_EDGE, minBytes = UPLOAD_OPTIMIZE_BYTES } = {}) {
+  const { info, blob } = inspected || {};
+  if (!inspected?.ok || !blob || typeof createImageBitmap !== 'function') return inspected;
+  if (Math.max(info.width, info.height) <= maxEdge && blob.size <= minBytes) return inspected;
+  let bitmap;
+  try {
+    try { bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' }); }
+    catch { bitmap = await createImageBitmap(blob); }
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    // JPEG stays JPEG; PNG and WebP become WebP, which keeps transparency.
+    const type = info.type === 'image/jpeg' ? 'image/jpeg' : 'image/webp';
+    const canvas = typeof OffscreenCanvas === 'function'
+      ? new OffscreenCanvas(width, height)
+      : Object.assign(document.createElement('canvas'), { width, height });
+    const context = canvas.getContext('2d');
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(bitmap, 0, 0, width, height);
+    const output = canvas.convertToBlob
+      ? await canvas.convertToBlob({ type, quality: 0.86 })
+      : await new Promise(resolve => canvas.toBlob(resolve, type, 0.86));
+    if (!output || output.type !== type || output.size >= blob.size) return inspected;
+    const fileName = type === info.type ? info.fileName : info.fileName.replace(/\.[^.]*$/, '') + '.webp';
+    return { ...inspected, blob: output, info: { ...info, fileName, type, size: output.size, width, height } };
+  } catch {
+    return inspected;
+  } finally {
+    bitmap?.close?.();
+  }
+}
