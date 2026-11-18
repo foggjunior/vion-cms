@@ -8,7 +8,7 @@ Current status for this work; resume from [CONTINUATION.md](../CONTINUATION.md).
 - **Images:** in the shared workspace, images load as resized Cloudinary renditions (480/1000/1600px) through a cached redirect that reads one stored entry instead of the whole workspace. Large photos are resized in the browser to a 2560px long edge before upload. Three files upload at once, but finalize steps run one at a time. The server verifies the Cloudinary file and loads the snapshot in parallel. All existing upload checks remain.
 - **Fixed:** saving **My profile** failed with "toast is not a function" (missing import).
 
-Checks: 61 server tests, 50 cloud-UI workflow checks, 25 inline-accommodation checks, 94 local unit checks, 97 review checks and 92 public-website tests passed. `tests/e2e.mjs` has 2 failures and `tests/daily-costs-e2e.mjs` stops at one button-style check; both fail the same way on commit 7508e4b without these changes. `tests/operations-e2e.mjs` was not run (hard-wired to port 5173). All runs were isolated: no environment files, Firebase, Cloudinary or live site, and no Next build/dev. Nothing committed, pushed or deployed.
+Checks: 61 server tests, 50 cloud-UI workflow checks, 25 inline-accommodation checks, 94 local unit checks, 97 review checks and 92 public-website tests passed. `tests/e2e.mjs` has 2 failures and `tests/daily-costs-e2e.mjs` stops at one button-style check; both fail the same way on commit 7508e4b without these changes. `tests/operations-e2e.mjs` was not run (hard-wired to port 5173). All runs were isolated: no environment files, Firebase, Cloudinary or live site, and no Next build/dev. Committed and pushed to `development` (CMS `00842b0`, website `edd2ea9`); not deployed.
 
 # 11 November 2026 — rich-text editing
 

@@ -4,12 +4,12 @@ Updated 18 November 2026. Read this first, then [docs/IMPLEMENTATION_STATUS.md](
 
 ## Where things stand
 
-Both tasks from the owner's 17–18 November request are implemented and tested. **Nothing is committed or pushed.** The owner commits, restarts the app and runs the connected (Firebase/Cloudinary) checks personally.
+Both tasks from the owner's 17–18 November request are implemented, tested, and committed and pushed to `development` in both repositories at the owner's request. Nothing is deployed. The owner restarts the app and runs the connected (Firebase/Cloudinary) checks personally.
 
 | Repository | Path | Branch | State |
 | --- | --- | --- | --- |
-| CMS | `D:\CMS\vion-cms` | `development` | Uncommitted changes listed below |
-| Public website | `D:\viona-africa-development` (a git worktree) | `development` | Uncommitted changes listed below |
+| CMS | `D:\CMS\vion-cms` | `development` | Pushed: `00842b0` "Add blog article sections, destination highlights and faster images" |
+| Public website | `D:\viona-africa-development` (a git worktree) | `development` | Pushed: `edd2ea9` "Render CMS article sections and destination highlights" |
 | Public website | `D:\viona-africa` | `main` | Has unrelated uncommitted changes from earlier work. **Do not use it for this task.** All website work belongs in the development worktree. |
 
 Codex ran out of credit partway through. It had already written the CMS toolbar, H1–H3, alignment, "Add section" composer, destination fields, and the public sanitizer and mapping changes, without tests or docs. Claude Code checked that work, finished it, fixed what the tests exposed, and wrote these notes.
@@ -70,6 +70,6 @@ The cloud browser tests serve `public/approved/`. Run `node tools/prepare-cloud.
 
 ## Next steps
 
-1. Owner: review, then commit on `development` in both repositories (suggested messages: "Add blog article sections, H1–H3, alignment and publish popup; faster CMS images" and "Render CMS article sections and destination highlights").
+1. Done: committed and pushed on `development` in both repositories (see the table above).
 2. Owner: run `npm run prepare:workspace`, restart the CMS, then check with the real services: upload a large phone photo, open the Gallery, write and publish an article with a photo pair, and fill Highlights/Signature experiences on a destination and view `/destinations/<slug>`.
 3. Optional follow-ups: fix the two pre-existing `e2e.mjs` failures and the daily-costs button check; let `operations-e2e.mjs` take `BASE_URL`; consider a width-limited thumbnail for the public blog listing.
