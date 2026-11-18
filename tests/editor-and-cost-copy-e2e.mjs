@@ -178,6 +178,7 @@ try {
    if(after)await composer.getByLabel('Text after the photos (optional)').fill(after);
    await composer.getByRole('button',{name:'Add section',exact:true}).click();
    await composer.waitFor({state:'detached'});
+   await body.getByRole('heading',{name:heading,exact:true}).waitFor();
  }
  await composeSection({level:'h3',heading:'Canoeing on Momela Lakes',text:'Paddle past hippos.\n\nSee flamingos.',photos:[/test-lodge.png/,/test-camp.png/],alts:['Canoes on the lake','Flamingos at dawn'],caption:'Momela Lakes',after:'Trips run in the morning.'});
  const sectionPhotos=body.locator('.article-section-photos');

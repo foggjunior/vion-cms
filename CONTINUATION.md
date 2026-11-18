@@ -25,7 +25,7 @@ Codex ran out of credit partway through. It had already written the CMS toolbar,
 | 5 | Each section has a heading (writer picks the level), paragraph text and supporting photos; two photos side by side, stacked on phones; then the next sections | Done. The toolbar button **Add section** opens a composer with heading level, heading, paragraph text, photos (any number; pairs sit side by side), and optional **text after the photos**. This matches the sample article (easytravel.co.tz): H2 → text → photo pair → text. |
 | 6 | Gallery images load slowly; uploads take long to verify | Done. See "Image speed" below. |
 | 7 | Popup when an article is published | Done. An **Article published** dialog names the article and its address. Shown for blog posts only. |
-| 8 | Destination signature experiences and highlights: CMS inputs and public page | Done. The public page already had hidden **Highlights** ("Why Visit") and **Signature Experiences** ("Only Here") sections waiting for data. The CMS now has both fields (Content tab), and the website mapping passes them through, plus Activities, which were not mapped from the CMS before. |
+| 8 | Destination signature experiences and highlights: CMS inputs and public page | Done. The public page already had hidden **Highlights** ("Why Visit") and **Signature Experiences** ("Only Here") sections waiting for data. The CMS now has both fields in their own **Highlights & signature experiences** panel on the destination editor's **Content** tab, and the website mapping passes them through, plus Activities, which were not mapped from the CMS before. |
 
 ## How it works (decisions to keep)
 
