@@ -1,6 +1,6 @@
 import {composeBlogSection} from './blog-section.js';
 import {button,h} from './dom.js';
-import {messageDialog,openDialog} from './dialog.js';
+import {confirmDialog,messageDialog,openDialog} from './dialog.js';
 import {assetImage} from './media.js';
 
 const richPrefix = '@vion-rich:';
@@ -21,6 +21,7 @@ function richFragment(html, sectionLevel) {
   function copy(node) {
     if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.data);
     if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    if (node.hasAttribute('data-article-editor-controls')) return null;
     const tag = node.localName;
     if (['script','style','iframe','object','svg','math','template'].includes(tag)) return null;
     if (tag === 'figure') {
@@ -39,8 +40,10 @@ function richFragment(html, sectionLevel) {
       hasSection = true;
     }
     const element = h(outputTag, tag === 'a' ? {href:node.getAttribute('href')} : null, children);
-    if (tag === 'div' && node.classList.contains('article-section-photos')) {
-      element.className = 'article-section-photos';
+    if (tag === 'div') {
+      for (const className of ['article-section','article-section-photos']) {
+        if (node.classList.contains(className)) element.classList.add(className);
+      }
     }
     if (['p','div','h1','h2','h3','li','blockquote'].includes(tag)) {
       const alignment = node.style.textAlign || node.getAttribute('align');
@@ -106,7 +109,7 @@ function inline(text) {
   return result;
 }
 
-function showPhotos(root, scope, remove) {
+function showPhotos(root, scope, {remove, replace} = {}) {
   for (const figure of root.querySelectorAll('figure[data-asset-id]')) {
     if (figure.querySelector('.writing-photo-image')) continue;
     const {assetId,alt} = figure.dataset;
@@ -115,8 +118,10 @@ function showPhotos(root, scope, remove) {
     figure.prepend(image);
     if (remove) {
       figure.contentEditable = 'false';
-      const action = button('Remove photo',{'aria-label':'Remove photo: '+alt,onClick:()=>remove(figure)});
-      figure.prepend(action);
+      const removeButton = button('Remove photo',{'aria-label':'Remove photo: '+alt,onClick:()=>remove(figure)});
+      figure.prepend(replace ? h('div',{class:'article-photo-actions'},
+        button('Change photo',{'aria-label':'Change photo: '+alt,onClick:()=>replace(figure)}),
+        removeButton) : removeButton);
     }
   }
 }
@@ -181,7 +186,8 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
   });
   if (control.value.startsWith(richPrefix)) editor.append(richFragment(control.value.slice(richPrefix.length)));
   else editor.append(...writingPreview(control.value,{preserveHeadings:imageSections}).childNodes);
-  showPhotos(editor,scope,readOnly ? null : removePhoto);
+  if (imageSections) groupExistingSections();
+  refreshPhotos();
   const field = control.closest('.field');
   field.querySelector('label').id = id+'-label';
   control.removeAttribute('id');
@@ -206,6 +212,90 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
     control.value = clean.textContent.trim() || clean.querySelector('figure') ? richPrefix+clean.innerHTML : '';
     control.dispatchEvent(new Event('input',{bubbles:true}));
     rememberSelection();
+  }
+  function refreshPhotos() {
+    showPhotos(editor,scope,readOnly ? undefined : {
+      remove:removePhoto,
+      replace:imageSections && pickImage ? replacePhoto : undefined
+    });
+  }
+  function placeCaret(node, {end = false} = {}) {
+    editor.focus({preventScroll:true});
+    const cursor = document.createRange();
+    cursor.selectNodeContents(node);
+    cursor.collapse(!end);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(cursor);
+    rememberSelection();
+  }
+  function decorateSection(section) {
+    if (readOnly) return;
+    const actions = h('div',{class:'article-section-actions',contenteditable:'false','data-article-editor-controls':''},
+      button('Edit section',{onClick:()=>{
+        const heading = section.querySelector('h1,h2,h3');
+        placeCaret(heading || section.lastElementChild || section);
+        (heading || section).scrollIntoView({block:'nearest'});
+      }}),
+      pickImage ? button('Add photo',{onClick:()=>addSectionPhoto(section)}) : null,
+      button('Duplicate section',{onClick:()=>{
+        const copy = richFragment(section.outerHTML).firstElementChild;
+        section.after(copy);
+        decorateSection(copy);
+        refreshPhotos();
+        placeCaret(copy.querySelector('h1,h2,h3') || copy.lastElementChild || copy);
+        sync();
+      }}),
+      button('Delete section',{onClick:async()=>{
+        const accepted = await confirmDialog({title:'Delete this article section?',
+          body:'This removes the heading, text and photos from the draft.',
+          confirmLabel:'Delete section',danger:true});
+        if (!accepted || !editor.contains(section)) return;
+        const neighbour = section.nextElementSibling || section.previousElementSibling;
+        section.remove();
+        if (neighbour?.matches('.article-section')) neighbour.querySelector('button')?.focus();
+        else editor.focus();
+        sync();
+      }}));
+    section.prepend(actions);
+  }
+  function groupExistingSections() {
+    // Older drafts stored their sections as a flat sequence beginning with a heading.
+    let current;
+    for (const node of [...editor.childNodes]) {
+      if (node.matches?.('.article-section')) {
+        decorateSection(node);
+        current = null;
+        continue;
+      }
+      if (node.matches?.('h1,h2,h3')) {
+        current = h('div',{class:'article-section'});
+        node.before(current);
+        decorateSection(current);
+      }
+      current?.append(node);
+    }
+  }
+  async function addSectionPhoto(section) {
+    const figure = await choosePhoto({title:'Choose a section photo',label:'Add photo'});
+    if (!figure || !editor.contains(section)) return;
+    let group = section.querySelector(':scope > .article-section-photos');
+    if (!group) {
+      group = h('div',{class:'article-section-photos'});
+      section.append(group);
+    }
+    group.append(figure);
+    refreshPhotos();
+    figure.querySelector('button')?.focus();
+    sync();
+  }
+  async function replacePhoto(figure) {
+    const replacement = await choosePhoto({title:'Choose a replacement photo',label:'Change photo',previous:figure});
+    if (!replacement || !editor.contains(figure)) return;
+    figure.replaceWith(replacement);
+    refreshPhotos();
+    replacement.querySelector('button')?.focus();
+    sync();
   }
   function removePhoto(figure) {
     const group = figure.parentElement?.closest('.article-section-photos');
@@ -294,48 +384,53 @@ export function mountWritingEditor(control, {readOnly = false, scope, pickImage,
     toolbar.append(h('label',{class:'writing-colour '+className,title:label},'A',input));
   }
   if (pickImage && imageSections) tool('Add article section','Add section',async()=>{
-    const section = await composeBlogSection({pickImage,scope});
-    if (!section || !editor.isConnected) return;
+    const content = await composeBlogSection({pickImage,scope});
+    if (!content || !editor.isConnected) return;
     if (!editor.textContent.trim() && !editor.querySelector('figure')) editor.replaceChildren();
+    const section = h('div',{class:'article-section'},content);
+    decorateSection(section);
     editor.append(section);
-    showPhotos(editor,scope,removePhoto);
-    editor.focus();
-    const selection = window.getSelection();
-    const end = document.createRange();
-    end.selectNodeContents(editor);
-    end.collapse(false);
-    selection.removeAllRanges();
-    selection.addRange(end);
+    refreshPhotos();
+    placeCaret(section.lastElementChild,{end:true});
     sync();
   });
-  if (pickImage) tool('Insert photo','Photo',async()=>{
-    const [asset] = await pickImage({title:'Choose an inline photo'}) || [];
-    if (!asset || !editor.isConnected) return;
-    const alt = h('input',{class:'input',type:'text',value:asset.alt||'',maxLength:500,required:true});
-    const caption = h('input',{class:'input',type:'text',maxLength:500});
+  async function choosePhoto({title,label,previous}) {
+    const [asset] = await pickImage({title}) || [];
+    if (!asset || !editor.isConnected) return null;
+    const alt = h('input',{class:'input',type:'text',
+      value:asset.id === previous?.dataset.assetId ? previous.dataset.alt : asset.alt || '',
+      maxLength:500,required:true});
+    const caption = h('input',{class:'input',type:'text',
+      value:previous?.querySelector('figcaption')?.textContent || '',maxLength:500});
     const fields = h('div',null,h('label',{class:'field'},'Alt text',alt),
       h('label',{class:'field'},'Caption (optional)',caption));
     const placement = await openDialog({title:'Describe this photo',content:fields,actions:[
       {label:'Cancel'},
-      {label:'Insert photo',variant:'primary',onClick:close=>{
+      {label,variant:'primary',onClick:close=>{
         alt.setCustomValidity(alt.value.trim() ? '' : 'Describe what the photo shows.');
         if (alt.reportValidity()) close({alt:alt.value.trim(),caption:caption.value.trim()});
       }}
     ]}).result;
-    if (!placement || !editor.isConnected) return;
-    const figure = h('figure',{'data-asset-id':asset.id,'data-alt':placement.alt},
+    if (!placement || !editor.isConnected) return null;
+    return h('figure',{'data-asset-id':asset.id,'data-alt':placement.alt},
       placement.caption ? h('figcaption',null,placement.caption) : null);
+  }
+  if (pickImage) tool('Insert photo','Photo',async()=>{
+    const figure = await choosePhoto({title:'Choose an inline photo',label:'Insert photo'});
+    if (!figure) return;
     restoreSelection();
     const selection = window.getSelection();
     if (!selection.rangeCount || !editor.contains(selection.anchorNode)) return;
     selection.collapseToEnd();
     document.execCommand('insertParagraph');
     const anchor = selection.anchorNode;
+    const element = anchor.nodeType === Node.ELEMENT_NODE ? anchor : anchor.parentElement;
+    const container = element.closest('.article-section') || editor;
     let block = anchor;
-    while (block && block !== editor && block.parentNode !== editor) block = block.parentNode;
-    if (block === editor) editor.insertBefore(figure,editor.childNodes[selection.anchorOffset] || null);
-    else editor.insertBefore(figure,block || null);
-    showPhotos(editor,scope,removePhoto);
+    while (block && block !== container && block.parentNode !== container) block = block.parentNode;
+    if (block === container) container.insertBefore(figure,container.childNodes[selection.anchorOffset] || null);
+    else container.insertBefore(figure,block || null);
+    refreshPhotos();
     sync();
   });
   tool('Clear formatting','Tₓ',()=>{
