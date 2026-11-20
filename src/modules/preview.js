@@ -4,7 +4,7 @@ import { h, icon } from '../components/dom.js';
 import { assetImage } from '../components/media.js';
 import { ACCOMMODATION_SETTINGS, KIND_LABELS, descriptionSource, publicName } from './shared/records.js';
 import { routeFor } from './shared/routes.js';
-import { describePrice, PROVISIONAL_PRICING_WARNING } from './shared/pricing.js';
+import { describePrice, formatAmount, GROUP_PRICE_FIELDS, PROVISIONAL_PRICING_WARNING } from './shared/pricing.js';
 import { truncateWords, paragraphs } from './shared/format.js';
 import { SEO_DESCRIPTION_ADVICE } from './shared/validation.js';
 import { formatDuration } from './shared/day-trips.js';
@@ -90,7 +90,7 @@ export function priceLine(record) {
   return h('div', { class: `price-line price-${price.kind}` },
     h('strong', null, price.text),
     price.kind === 'from' && price.applicability ? h('span', { class: 'price-note' }, price.applicability) : null,
-    price.kind !== 'request' ? h('small', { class: 'price-provisional' }, 'Provisional manual price — not a quote.') : null);
+    record.pricing?.mode === 'manualFrom' ? h('small', { class: 'price-provisional' }, 'Legacy indicative price') : null);
 }
 
 export function cardSummary(record, resolver) {
@@ -158,14 +158,22 @@ function termTags(ids, resolver) {
   return tags.length ? h('p', { class: 'term-row' }, tags) : null;
 }
 
+function groupPriceSection(record) {
+  const pricing = record.pricing;
+  if (pricing?.mode !== 'groupUsd' || describePrice(pricing).kind !== 'from') return null;
+  return section('Prices by group size', h('ul', { class: 'preview-list' }, GROUP_PRICE_FIELDS.map(key =>
+    h('li', null, 'Group of ' + key.slice(-1) + ' · ' + formatAmount(pricing[key], 'USD') + ' per person'))));
+}
+
 function tourBody(record, resolver, linkFor, scope) {
   return [
     h('div', { class: 'tour-facts' },
       h('div', null, h('small', null, 'Duration'), h('strong', null, record.durationDays ? `${record.durationDays} day${record.durationDays === 1 ? '' : 's'}` : 'Not set')),
       h('div', null, h('small', null, 'Destinations'), h('span', null, record.destinationIds?.length ? refList(record.destinationIds, resolver, linkFor, { separator: ', ' }) : 'None')),
       h('div', null, h('small', null, 'Price'), priceLine(record))),
+    groupPriceSection(record),
     record.pricing?.mode === 'manualFrom' ? h('p', { class: 'muted small preview-pad' }, PROVISIONAL_PRICING_WARNING) : null,
-    termTags([record.typeId, record.categoryId, record.standardId, ...(record.tagIds || [])], resolver),
+    termTags([...(record.typeIds ?? [record.typeId]), record.categoryId, record.standardId, ...(record.tagIds || [])], resolver),
     record.summary ? h('p', { class: 'lead' }, record.summary) : null,
     section('Overview', writingPreview(record.overview,{sectionLevel:3,scope})),
     section('Itinerary', record.itinerary?.length ? h('ol', { class: 'itinerary-preview' }, record.itinerary.map(day => h('li', null,
@@ -174,7 +182,8 @@ function tourBody(record, resolver, linkFor, scope) {
       day.destinationIds?.length ? h('p', { class: 'small' }, 'Destinations: ', refList(day.destinationIds, resolver, linkFor, { separator: ', ' })) : null,
       day.accommodationIds?.length ? h('p', { class: 'small' }, 'Accommodation: ', refList(day.accommodationIds, resolver, linkFor, { separator: ' or ' })) : h('p', { class: 'small muted' }, 'Accommodation: not specified'),
       day.meals?.length ? h('p', { class: 'small' }, 'Meals: ', day.meals.join(', ')) : null,
-      day.activities?.length ? h('p', { class: 'small' }, 'Activities: ', day.activities.join(', ')) : null))) : h('p', { class: 'muted' }, 'No itinerary days.')),
+      day.activities?.length ? h('p', { class: 'small' }, 'Activities: ', day.activities.join(', ')) : null,
+      day.photos?.length ? h('div', { class: 'preview-gallery' }, day.photos.map(photo => figure(scope, resolver, photo, 'gallery-item'))) : null))) : h('p', { class: 'muted' }, 'No itinerary days.')),
     h('div', { class: 'two-col' }, section('Included', list(record.inclusions)), section('Not included', list(record.exclusions)))
   ];
 }
@@ -187,6 +196,7 @@ function dayTripBody(record, resolver, linkFor) {
       duration ? h('div', null, h('small', null, 'Duration'), h('strong', null, duration)) : null,
       h('div', null, h('small', null, record.destinationIds?.length === 1 ? 'Destination' : 'Destinations'), h('span', null, record.destinationIds?.length ? refList(record.destinationIds, resolver, linkFor, { separator: ', ' }) : 'None')),
       h('div', null, h('small', null, 'Price'), priceLine(record))),
+    groupPriceSection(record),
     record.pricing?.mode === 'manualFrom' ? h('p', { class: 'muted small preview-pad' }, PROVISIONAL_PRICING_WARNING) : null,
     termTags(record.tagIds || [], resolver),
     record.summary ? h('p', { class: 'lead' }, record.summary) : null,

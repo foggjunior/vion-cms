@@ -132,7 +132,8 @@ await check('Dashboard renders with gold branding, logo and 13 navigation groups
   expect(await page.locator('.brand img[src="assets/logo-dark.svg"]').count() === 1, 'logo missing');
   const gold = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--gold').trim());
   expect(gold === '#aa791b', `gold token changed: ${gold}`);
-  expect(await page.locator('.stat').count() === 3 && await page.locator('.quick-action').count() === 6, 'dashboard widgets missing');
+  await page.waitForSelector('.dashboard-layout');
+  expect(await page.locator('.stat').count() === 3 && await page.locator('.quick-action').count() === 7, 'dashboard widgets missing');
 });
 await check('Sidebar list/Add entries open the working modules', async () => {
   const pairs = [['Tour Packages', 'Tours List', '#/tours', 'Tours'], ['Tour Packages', 'Add Tour', '#/tours/new', 'New tour'], ['Destinations', 'Destinations List', '#/destinations', 'Destinations'], ['Destinations', 'Add Destination', '#/destinations/new', 'New destination'], ['Accommodations', 'Accommodations List', '#/accommodations', 'Accommodations'], ['Accommodations', 'Add Accommodation', '#/accommodations/new', 'New accommodation']];
@@ -218,7 +219,7 @@ await check('Draft edits to a published record do not change the published previ
 
 // ---- 3. Accommodation ----
 let accId;
-await check('Accommodation: unsafe website rejected; linked to destination; phone hidden unless selected', async () => {
+await check('Accommodation: unsafe website rejected and new records stay in the staff catalogue', async () => {
   await open(`#/accommodations/new`);
   await page.fill('#f-title', 'Plains Camp');
   await page.fill('#f-type', 'Lodge');
@@ -243,18 +244,10 @@ await check('Accommodation: unsafe website rejected; linked to destination; phon
   await publish();
   expect(/Published locally/.test(await status()), await status());
   await open(`#/site/accommodations/plains-camp`);
-  await page.waitForSelector('.preview-page');
-  let body = await text('.preview-page');
-  expect(!/\+255 700 000 000/.test(body), 'phone shown while hidden');
-  expect(/Serengeti National Park/.test(body), 'destination link missing');
+  expect(/public page is disabled/.test(await text('#moduleRoot')), 'accommodation opened as a public page');
   await open(`#/accommodations/${accId}`);
   await tab('Contact');
-  await page.check('#f-publicPhoneVisible');
-  await publish();
-  await open(`#/site/accommodations/plains-camp`);
-  await page.waitForSelector('.preview-page');
-  body = await text('.preview-page');
-  expect(/\+255 700 000 000/.test(body), 'phone not shown when selected');
+  expect(await page.inputValue('#f-publicPhone') === '+255 700 000 000', 'phone was not saved for staff');
 });
 await check('Accommodation: no-destination reason is required to publish and resolves the error', async () => {
   await open(`#/accommodations/new`);
@@ -317,56 +310,34 @@ await check('Tour: reserved hub slug and malformed numbers are rejected', async 
   expect(/No changes to save/.test(await status()), `reverting to saved values should leave nothing to save: ${await status()}`);
   expect(await page.locator('.issue-summary.has-errors').count() === 0, 'stale errors still shown after fixing the fields');
 });
-await check('Tour: price on request by default; publish succeeds with published dependencies', async () => {
+await check('Tour: three positive USD group rates are required and the group-of-6 rate is advertised', async () => {
   await reuseCover('serengeti.png');
   await page.fill('#f-cover-alt', 'Safari vehicle on the plains');
+  await tab('Pricing');
+  await page.fill('#f-pricing-group2', '1,500');
+  await save();
+  expect(/digits/.test(await text('#f-pricing-group2-error')), 'comma amount accepted');
+  await page.fill('#f-pricing-group2', '1500');
+  await page.fill('#f-pricing-group4', '1250');
+  await page.click('[data-action="publish"]');
+  await page.waitForFunction(() => /Enter the USD price per person for a group of 6/.test(document.querySelector('.issue-summary')?.textContent || ''));
+  await page.fill('#f-pricing-group6', '1000');
+  expect(/From USD\s1,000 per person/.test(await text('.price-display')), await text('.price-display'));
   await publish();
   expect(/Published locally/.test(await status()), await status());
   await open(`#/site/tours/northern-circuit-safari`);
   await page.waitForSelector('.preview-page');
-  expect(/Price on request/.test(await text('.preview-page')), 'request price display');
+  expect(/From USD\s1,000 per person/.test(await text('.tour-facts')), 'wrong published headline price');
   expect(/Plains Camp/.test(await text('.itinerary-preview')), 'day accommodation missing');
 });
-await check('Pricing: manual per group/person/vehicle render distinctly; zero differs from missing; commas rejected', async () => {
+await check('Saving new draft group rates leaves the published headline unchanged', async () => {
   await open(`#/tours/${tourId}`);
   await tab('Pricing');
-  await page.locator('#f-pricing-mode input[value="manualFrom"]').check();
-  await page.waitForSelector('#f-pricing-amount');
-  await page.fill('#f-pricing-currency', 'USD');
-  await page.fill('#f-pricing-amount', '1,250');
-  await page.selectOption('#f-pricing-basis', 'perGroup');
+  await page.fill('#f-pricing-group6', '1100');
   await save();
-  expect(/digits only/.test(await text('#f-pricing-amount-error')), 'comma amount accepted');
-  await page.fill('#f-pricing-amount', '0');
-  expect(/From USD\s0 per group/.test(await text('.price-display')), await text('.price-display'));
-  await page.click('[data-action="publish"]');
-  // The earlier draft-error summary is still on screen until publish validation replaces it.
-  await page.waitForFunction(() => /Not ready to publish/.test(document.querySelector('.issue-summary')?.textContent || ''), null, { timeout: 10000 });
-  expect(/what the “from” price applies to/.test(await text('.issue-summary')), 'applicability not required');
-  await page.fill('#f-pricing-applicability', 'Whole private vehicle, up to 6 guests, low season.');
-  await publish();
   await open(`#/site/tours/northern-circuit-safari`);
   await page.waitForSelector('.preview-page');
-  let body = await text('.tour-facts');
-  expect(/From USD\s0 per group/.test(body) && !/per person/.test(body), body);
-  await open(`#/tours/${tourId}`);
-  await tab('Pricing');
-  await page.fill('#f-pricing-amount', '1250');
-  await page.selectOption('#f-pricing-basis', 'perPerson');
-  expect(/From USD\s1,250 per person/.test(await text('.price-display')), await text('.price-display'));
-  await page.selectOption('#f-pricing-basis', 'perVehicle');
-  expect(/From USD\s1,250 per vehicle/.test(await text('.price-display')), await text('.price-display'));
-  await page.fill('#f-pricing-amount', '');
-  expect(/Manual price incomplete/.test(await text('.price-display')), 'missing amount should not read as zero');
-  await page.locator('#f-pricing-mode input[value="request"]').check();
-  await page.waitForTimeout(200);
-  expect(/Price on request/.test(await text('.price-display')), 'request after switch');
-  await save();
-  const pricing = await page.evaluate(async id => (await (await window.__vionApp.workspace()).content.get(id)).record.pricing, tourId);
-  expect(JSON.stringify(pricing) === '{"mode":"request"}', `request mode stored extra fields: ${JSON.stringify(pricing)}`);
-  await open(`#/site/tours/northern-circuit-safari`);
-  await page.waitForSelector('.preview-page');
-  expect(/From USD\s0 per group/.test(await text('.tour-facts')), 'saved draft silently republished');
+  expect(/From USD\s1,000 per person/.test(await text('.tour-facts')), 'saved draft silently republished');
 });
 
 // ---- 5. Duplicate, archive/restore, dependencies ----
@@ -645,7 +616,7 @@ await check('Settings submenu keeps Setting Options and adds Team; both open wor
   expect(await page.locator('.submenu button.selected', { hasText: 'Team' }).count() === 1, 'Team not highlighted');
   await open('#/dashboard');
   await page.click('#accountButton');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.locator('#accountMenu').getByRole('button', { name: 'Settings', exact: true }).click();
   await page.waitForSelector('#f-company-name');
 });
 
@@ -1028,7 +999,7 @@ await check('Tours: selectors offer active managed terms; an inactive saved sele
   await open('#/tours/new');
   await page.fill('#f-title', 'Culture walk tour');
   await tab('Destinations & classification');
-  await page.selectOption('#f-typeId', { label: 'Private safari' });
+  await page.locator('#f-typeIds').getByLabel('Private safari').check();
   await page.locator('#f-tagIds label.check', { hasText: 'Cultural visits' }).locator('input').check();
   await save();
   expect(/Draft saved/.test(await status()), await status());
@@ -1143,18 +1114,15 @@ await check('Day trips: Add Activity opens the editor; invalid duration rejected
   await reuseCover('serengeti.png');
   await page.fill('#f-cover-alt', 'Dhow sails against the sunset');
   await tab('Pricing');
-  await page.check('#f-pricing-mode input[value="manualFrom"]');
-  await page.fill('#f-pricing-currency', 'USD');
-  await page.fill('#f-pricing-amount', '0');
-  await page.selectOption('#f-pricing-basis', 'perGroup');
-  await page.fill('#f-pricing-applicability', 'Private boat for up to 6 guests.');
-  expect(/From USD.0 per group/.test(await text('.price-display')), await text('.price-display'));
+  await page.fill('#f-pricing-group2', '150');
+  await page.fill('#f-pricing-group4', '125');
+  await page.fill('#f-pricing-group6', '100');
+  expect(/From USD\s100 per person/.test(await text('.price-display')), await text('.price-display'));
   await publish();
   expect(/Published locally/.test(await status()), await status());
   await open(`#/day-trips/${tripId}/preview?rev=published`);
   const body = await text('.preview-page');
-  for (const pattern of [/per group/, /Birding/, /2\.5 hours/, /Zanzibar Stone Town/, /Sunset[\s\S]*Boarding/, /What to bring[\s\S]*Sun hat/, /Own inclusion/]) expect(pattern.test(body), `${pattern} missing from preview`);
-  expect(!/per person/.test(body), 'per person shown for a per-group price');
+  for (const pattern of [/per person/, /Birding/, /2\.5 hours/, /Zanzibar Stone Town/, /Sunset[\s\S]*Boarding/, /What to bring[\s\S]*Sun hat/, /Own inclusion/]) expect(pattern.test(body), `${pattern} missing from preview`);
   expect(!/\bnull\b|undefined/.test(await text('#moduleRoot')), 'stray null/undefined text rendered');
   await page.screenshot({ path: join(outDir, 'desktop-daytrip-preview.png'), fullPage: true });
 });
@@ -1196,7 +1164,7 @@ await check('Local day-trip listing: published only; ?filter=tag&value= works; u
   expect(/not supported/.test(await text('.notice-warning')) && /Sunset Dhow Cruise/.test(await text('.card-grid')), 'invalid filter state');
   await open('#/site/tours/day-trips/sunset-dhow-cruise');
   const detail = await text('.preview-page');
-  expect(/per group/.test(detail) && /Birding/.test(detail) && !/inactive|Unresolved|\bEdit\b|Key /.test(detail), detail.slice(0, 300));
+  expect(/per person/.test(detail) && /Birding/.test(detail) && !/inactive|Unresolved|\bEdit\b|Key /.test(detail), detail.slice(0, 300));
   expect(await page.locator('#moduleRoot .site-footer').count() === 1, 'shared footer missing');
   await open('#/site');
   expect(/Sunset Dhow Cruise/.test(await text('#moduleRoot')), 'home page lacks published day trips');

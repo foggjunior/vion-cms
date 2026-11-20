@@ -1,0 +1,374 @@
+{
+  "generatedAt": "2026-11-19T21:05:33.284Z",
+  "images": 22,
+  "results": {
+    "phone": {
+      "viewport": "390x844@3x",
+      "imageRequests": 22,
+      "imageBytes": 1719038,
+      "cls": 0.0191,
+      "images": [
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": false,
+          "lazy": true
+        }
+      ]
+    },
+    "desktop": {
+      "viewport": "1440x900@1x",
+      "imageRequests": 22,
+      "imageBytes": 1719038,
+      "cls": 0,
+      "images": [
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 728,
+          "height": 485,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 728,
+          "height": 486,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 728,
+          "height": 486,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": false,
+          "lazy": true
+        },
+        {
+          "requested": 1000,
+          "natural": 1000,
+          "shown": 728,
+          "height": 485,
+          "hasDimensions": false,
+          "lazy": true
+        }
+      ]
+    }
+  }
+}

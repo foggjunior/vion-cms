@@ -1,5 +1,6 @@
 // Opens the local workspace: one IndexedDB database shared by the content (destinations, accommodations, tours,
 // day trips), site (settings + team), media, taxonomy, day-trip defaults and backup services.
+import { createSummaryService } from '../review/summary.js';
 import {createAccommodationService} from '../operations/accommodation-service.js';
 import { StorageError, openDatabase } from './idb.js';
 import { createContentRepository } from './content-repository.js';
@@ -59,7 +60,7 @@ export async function openWorkspace({ dbName = DEFAULT_DB_NAME, schema, siteSche
   const faults = createFaults();
   const options = { db, validator, siteValidator, events, faults, ...(clock && { clock }), ...(newId && { newId }) };
   const content = createContentRepository(options);
-  return {
+  const ws = {
     dbName, db, validator, siteValidator, events, faults, content,
     site: createSiteRepository(options),
     media: createMediaRepository(options),
@@ -70,6 +71,9 @@ export async function openWorkspace({ dbName = DEFAULT_DB_NAME, schema, siteSche
     loadContext: () => content.loadContext(),
     close() { events.close(); db.close(); }
   };
+  // Screen summaries are computed locally in the browser-only preview, like the shared workspace does on the server.
+  ws.summaries = createSummaryService(ws);
+  return ws;
 }
 
 export async function deleteWorkspace(dbName) {

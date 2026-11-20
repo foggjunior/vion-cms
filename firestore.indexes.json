@@ -1,0 +1,13 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "cms_entries", "fieldPath": "json", "ttl": false, "indexes": [] },
+    { "collectionGroup": "cms_public", "fieldPath": "data", "ttl": false, "indexes": [] },
+    { "collectionGroup": "cms_email_jobs", "fieldPath": "html", "ttl": false, "indexes": [] },
+    { "collectionGroup": "cms_received_email", "fieldPath": "text", "ttl": false, "indexes": [] },
+    { "collectionGroup": "cms_received_email", "fieldPath": "attachments", "ttl": false, "indexes": [] },
+    { "collectionGroup": "cms_finance", "fieldPath": "rows", "ttl": false, "indexes": [] },
+    { "collectionGroup": "cms_finance", "fieldPath": "trips", "ttl": false, "indexes": [] },
+    { "collectionGroup": "cms_revalidate_jobs", "fieldPath": "paths", "ttl": false, "indexes": [] }
+  ]
+}

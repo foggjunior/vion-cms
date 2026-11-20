@@ -1,0 +1,535 @@
+{
+ "source": "npm bulk advisory endpoint, resolved versions from pnpm-lock.yaml",
+ "packages": 937,
+ "advisories": 66,
+ "rows": [
+  {
+   "name": "next",
+   "severity": "critical",
+   "title": "Next.js: Unauthenticated Remote Code Execution on windows-hosted servers",
+   "range": ">=13.4.0 <15.5.24",
+   "resolved": "15.5.22",
+   "url": "https://github.com/advisories/GHSA-p293-qw3h-jr36"
+  },
+  {
+   "name": "next",
+   "severity": "critical",
+   "title": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when AVIF files are used",
+   "range": ">=10.0.0 <15.5.24",
+   "resolved": "15.5.22",
+   "url": "https://github.com/advisories/GHSA-2xp9-vwfh-vxw4"
+  },
+  {
+   "name": "next",
+   "severity": "critical",
+   "title": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when SVG files are used",
+   "range": ">=10.0.0 <=15.5.27",
+   "resolved": "15.5.22",
+   "url": "https://github.com/advisories/GHSA-2464-fhr4-w9xw"
+  },
+  {
+   "name": "swiper",
+   "severity": "critical",
+   "title": "Prototype pollution in swiper",
+   "range": ">=6.5.1 <12.1.2",
+   "resolved": "11.2.10",
+   "url": "https://github.com/advisories/GHSA-hmx5-qpq5-p643"
+  },
+  {
+   "name": "@grpc/grpc-js",
+   "severity": "high",
+   "title": "@grpc/grpc-js: In certain configurations, getAuthContext can return unauthorized certificates as though they were authorized",
+   "range": "<1.13.6",
+   "resolved": "1.14.5,1.9.16",
+   "url": "https://github.com/advisories/GHSA-m9gg-hp2v-232j"
+  },
+  {
+   "name": "brace-expansion",
+   "severity": "high",
+   "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+   "range": "<1.1.19",
+   "resolved": "1.1.18,2.1.4",
+   "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p"
+  },
+  {
+   "name": "brace-expansion",
+   "severity": "high",
+   "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+   "range": ">=2.0.0 <2.1.5",
+   "resolved": "1.1.18,2.1.4",
+   "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p"
+  },
+  {
+   "name": "brace-expansion",
+   "severity": "high",
+   "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+   "range": "<1.1.20",
+   "resolved": "1.1.18,2.1.4",
+   "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7"
+  },
+  {
+   "name": "brace-expansion",
+   "severity": "high",
+   "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+   "range": ">=2.0.0 <2.1.6",
+   "resolved": "1.1.18,2.1.4",
+   "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7"
+  },
+  {
+   "name": "glob",
+   "severity": "high",
+   "title": "glob CLI: Command injection via -c/--cmd executes matches with shell:true",
+   "range": ">=10.2.0 <10.5.0",
+   "resolved": "10.3.10,7.2.3",
+   "url": "https://github.com/advisories/GHSA-5j98-mcp5-4vw2"
+  },
+  {
+   "name": "js-yaml",
+   "severity": "high",
+   "title": "js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
+   "range": ">=4.0.0 <4.3.2",
+   "resolved": "4.3.1",
+   "url": "https://github.com/advisories/GHSA-2883-xcg3-v3hh"
+  },
+  {
+   "name": "lodash-es",
+   "severity": "high",
+   "title": "lodash vulnerable to Code Injection via `_.template` imports key names",
+   "range": ">=4.0.0 <=4.17.23",
+   "resolved": "4.17.21",
+   "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc"
+  },
+  {
+   "name": "minimatch",
+   "severity": "high",
+   "title": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+   "range": ">=9.0.0 <9.0.6",
+   "resolved": "3.1.5,9.0.3,9.0.9",
+   "url": "https://github.com/advisories/GHSA-3ppc-4f35-3m26"
+  },
+  {
+   "name": "minimatch",
+   "severity": "high",
+   "title": "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+   "range": ">=9.0.0 <9.0.7",
+   "resolved": "3.1.5,9.0.3,9.0.9",
+   "url": "https://github.com/advisories/GHSA-7r86-cg39-jmmj"
+  },
+  {
+   "name": "minimatch",
+   "severity": "high",
+   "title": "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+   "range": ">=9.0.0 <9.0.7",
+   "resolved": "3.1.5,9.0.3,9.0.9",
+   "url": "https://github.com/advisories/GHSA-23c5-xmqv-rm74"
+  },
+  {
+   "name": "nanoid",
+   "severity": "high",
+   "title": "nanoid: custom generators can loop indefinitely when size is zero",
+   "range": "<3.3.18",
+   "resolved": "3.3.17,3.3.19",
+   "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8"
+  },
+  {
+   "name": "next",
+   "severity": "high",
+   "title": "Next.js: Denial of Service in App Router using Server Actions",
+   "range": ">=13.0.0 <=15.5.27",
+   "resolved": "15.5.22",
+   "url": "https://github.com/advisories/GHSA-p3m5-59mp-jv5r"
+  },
+  {
+   "name": "postcss",
+   "severity": "high",
+   "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+   "range": "<=8.5.11",
+   "resolved": "8.4.31,8.5.25,8.5.28",
+   "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q"
+  },
+  {
+   "name": "postcss",
+   "severity": "high",
+   "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+   "range": "<=8.5.17",
+   "resolved": "8.4.31,8.5.25,8.5.28",
+   "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849"
+  },
+  {
+   "name": "sharp",
+   "severity": "high",
+   "title": "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591",
+   "range": "<0.35.0",
+   "resolved": "0.34.5",
+   "url": "https://github.com/advisories/GHSA-f88m-g3jw-g9cj"
+  },
+  {
+   "name": "sharp",
+   "severity": "high",
+   "title": "sharp: Vulnerabilities in libheif: GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545",
+   "range": "<0.35.4",
+   "resolved": "0.34.5",
+   "url": "https://github.com/advisories/GHSA-rgj7-g3m4-5g8c"
+  },
+  {
+   "name": "sharp",
+   "severity": "high",
+   "title": "sharp : Vulnerability in librsvg dependency CVE-2026-96889",
+   "range": "<0.35.5",
+   "resolved": "0.34.5",
+   "url": "https://github.com/advisories/GHSA-wq5f-xc86-pv6w"
+  },
+  {
+   "name": "source-map-js",
+   "severity": "high",
+   "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+   "range": ">=1.0.0 <1.2.2",
+   "resolved": "1.2.1",
+   "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q"
+  },
+  {
+   "name": "undici",
+   "severity": "high",
+   "title": "Undici: Malicious WebSocket 64-bit length overflows parser and crashes the client",
+   "range": ">=6.0.0 <6.24.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-f269-vfmq-vjvj"
+  },
+  {
+   "name": "undici",
+   "severity": "high",
+   "title": "Undici has Unbounded Memory Consumption in WebSocket permessage-deflate Decompression",
+   "range": "<6.24.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-vrm6-8vpv-qv8q"
+  },
+  {
+   "name": "undici",
+   "severity": "high",
+   "title": "Undici has Unhandled Exception in WebSocket Client Due to Invalid server_max_window_bits Validation",
+   "range": "<6.24.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-v9p9-hfj2-hcw8"
+  },
+  {
+   "name": "undici",
+   "severity": "high",
+   "title": "undici vulnerable to Denial of Service via unrequested WebSocket subprotocol",
+   "range": ">=6.7.0 <6.28.1",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-rfgv-xxqx-mfg5"
+  },
+  {
+   "name": "undici",
+   "severity": "high",
+   "title": "undici vulnerable to TLS certificate validation bypass via dropped tls options in Agent",
+   "range": ">=4.0.0 <6.29.1",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-2m5v-pch6-74hx"
+  },
+  {
+   "name": "undici",
+   "severity": "high",
+   "title": "undici vulnerable to Denial of Service via TLS 1.2 certificate-changing renegotiation",
+   "range": ">=4.2.1 <6.29.1",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-qrxm-fqhp-jwvm"
+  },
+  {
+   "name": "undici",
+   "severity": "high",
+   "title": "undici WebSocket client vulnerable to denial of service via fragment count bypass",
+   "range": "<6.27.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-vxpw-j846-p89q"
+  },
+  {
+   "name": "@ckeditor/ckeditor5-clipboard",
+   "severity": "moderate",
+   "title": "Cross-site scripting (XSS) in the clipboard package",
+   "range": ">=40.0.0 <43.1.1",
+   "resolved": "41.4.2",
+   "url": "https://github.com/advisories/GHSA-rgg8-g5x8-wr9v"
+  },
+  {
+   "name": "@ckeditor/ckeditor5-html-support",
+   "severity": "moderate",
+   "title": "CKEditor 5 has Cross-site Scripting (XSS) in the HTML Support package",
+   "range": ">=29.0.0 <47.6.0",
+   "resolved": "41.4.2",
+   "url": "https://github.com/advisories/GHSA-jrqm-vmqc-gm93"
+  },
+  {
+   "name": "brace-expansion",
+   "severity": "moderate",
+   "title": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+   "range": "<1.1.21",
+   "resolved": "1.1.18,2.1.4",
+   "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr"
+  },
+  {
+   "name": "brace-expansion",
+   "severity": "moderate",
+   "title": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+   "range": ">=2.0.0 <2.1.7",
+   "resolved": "1.1.18,2.1.4",
+   "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr"
+  },
+  {
+   "name": "ckeditor5",
+   "severity": "moderate",
+   "title": "Cross-site scripting (XSS) in the clipboard package",
+   "range": ">=40.0.0 <43.1.1",
+   "resolved": "41.4.2",
+   "url": "https://github.com/advisories/GHSA-rgg8-g5x8-wr9v"
+  },
+  {
+   "name": "ckeditor5",
+   "severity": "moderate",
+   "title": "CKEditor 5 has Cross-site Scripting (XSS) in the HTML Support package",
+   "range": ">=29.0.0 <47.6.0",
+   "resolved": "41.4.2",
+   "url": "https://github.com/advisories/GHSA-jrqm-vmqc-gm93"
+  },
+  {
+   "name": "glob",
+   "severity": "moderate",
+   "title": "Glob: AbortSignal cancellation bypass allows post-timeout filesystem traversal",
+   "range": ">=9.0.0 <=14.0.1",
+   "resolved": "10.3.10,7.2.3",
+   "url": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4"
+  },
+  {
+   "name": "lodash-es",
+   "severity": "moderate",
+   "title": "Lodash has Prototype Pollution Vulnerability in `_.unset`, `_.omit`, and `_.pullAt` functions",
+   "range": ">=4.0.0 <4.17.23",
+   "resolved": "4.17.21",
+   "url": "https://github.com/advisories/GHSA-xxjr-mmjv-4gpg"
+  },
+  {
+   "name": "minimatch",
+   "severity": "moderate",
+   "title": "minimatch has potential denial of service via globparts amplification",
+   "range": ">=7.0.0 <11.0.1",
+   "resolved": "3.1.5,9.0.3,9.0.9",
+   "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249"
+  },
+  {
+   "name": "moment",
+   "severity": "moderate",
+   "title": "moment vulnerable to Path Traversal via crafted non-string locale name",
+   "range": ">=2.29.2 <2.31.0",
+   "resolved": "2.30.1",
+   "url": "https://github.com/advisories/GHSA-4p3w-j4w9-5jqw"
+  },
+  {
+   "name": "next",
+   "severity": "moderate",
+   "title": "Next.js has cache poisoning in SSG/ISR rendering that leads to cross-user content substitution and persistent denial of service",
+   "range": ">=15.0.0 <15.5.27",
+   "resolved": "15.5.22",
+   "url": "https://github.com/advisories/GHSA-mcj8-r9mp-w47p"
+  },
+  {
+   "name": "next",
+   "severity": "moderate",
+   "title": "Next.js has cache poisoning of SSG and ISR pages in self-hosted applications",
+   "range": ">=15.0.0 <15.5.27",
+   "resolved": "15.5.22",
+   "url": "https://github.com/advisories/GHSA-4jqv-mc3x-m676"
+  },
+  {
+   "name": "postcss-selector-parser",
+   "severity": "moderate",
+   "title": "PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion",
+   "range": "<6.1.5",
+   "resolved": "6.1.4",
+   "url": "https://github.com/advisories/GHSA-rj75-hqrm-r3gf"
+  },
+  {
+   "name": "postcss",
+   "severity": "moderate",
+   "title": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
+   "range": "<=8.5.22",
+   "resolved": "8.4.31,8.5.25,8.5.28",
+   "url": "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp"
+  },
+  {
+   "name": "postcss",
+   "severity": "moderate",
+   "title": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+   "range": "<8.5.10",
+   "resolved": "8.4.31,8.5.25,8.5.28",
+   "url": "https://github.com/advisories/GHSA-qx2v-qp2m-jg93"
+  },
+  {
+   "name": "sanitize-html",
+   "severity": "moderate",
+   "title": "ApostropheCMS sanitize-html: unbounded recursion when re-sanitizing the fallback of a discarded iframe (stack overflow, nestingLimit not enforced)",
+   "range": ">=2.18.0 <2.18.1",
+   "resolved": "2.18.0",
+   "url": "https://github.com/advisories/GHSA-c9rx-x947-fp3h"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "Use of Insufficiently Random Values in undici",
+   "range": ">=6.0.0 <6.21.1",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-c76h-2ccp-4975"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "Undici has an unbounded decompression chain in HTTP responses on Node.js Fetch API via Content-Encoding leads to resource exhaustion",
+   "range": "<6.23.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-g9mf-h72j-4rw9"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "Undici has an HTTP Request/Response Smuggling issue",
+   "range": "<6.24.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-2mjp-6q6p-2qxm"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "Undici has CRLF Injection in undici via `upgrade` option",
+   "range": "<6.24.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-4992-7rv2-5pvq"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "undici vulnerable to downstream response desynchronization via retry interceptor",
+   "range": "<6.28.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-8xcm-r25x-g524"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "undici vulnerable to CRLF Injection via blob-like body 'type' property",
+   "range": "<6.28.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-m8rv-5g2x-5cg5"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "undici vulnerable to cookie attribute injection via unsanitized domain and unparsed setCookie fields",
+   "range": "<6.28.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-v3r7-h72x-cjcm"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "undici vulnerable to HTTP header injection via Set-Cookie percent-decoding",
+   "range": "<6.27.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-p88m-4jfj-68fv"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "undici vulnerable to Denial of Service via unbounded memory in the EventSource parser",
+   "range": ">=6.5.0 <6.29.1",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-4qv8-2p9j-2685"
+  },
+  {
+   "name": "undici",
+   "severity": "moderate",
+   "title": "undici WebSocket client vulnerable to Denial of Service via unbounded automatic PONG buffering",
+   "range": ">=5.15.0 <6.29.1",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-9fm3-97px-rjf6"
+  },
+  {
+   "name": "uuid",
+   "severity": "moderate",
+   "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+   "range": "<11.1.1",
+   "resolved": "9.0.1",
+   "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq"
+  },
+  {
+   "name": "@ckeditor/ckeditor5-engine",
+   "severity": "low",
+   "title": "CKEditor: Cross-site scripting (XSS) in the engine package",
+   "range": ">=29.0.0 <47.7.4",
+   "resolved": "41.4.2",
+   "url": "https://github.com/advisories/GHSA-v6mg-96c6-gmpq"
+  },
+  {
+   "name": "@grpc/grpc-js",
+   "severity": "low",
+   "title": "@grpc/grpc-js: The server transmits some error messages thrown by method handlers to the client in status messages",
+   "range": "<1.13.6",
+   "resolved": "1.14.5,1.9.16",
+   "url": "https://github.com/advisories/GHSA-f596-whhp-79r4"
+  },
+  {
+   "name": "@tootallnate/once",
+   "severity": "low",
+   "title": "@tootallnate/once vulnerable to Incorrect Control Flow Scoping",
+   "range": "<2.0.1",
+   "resolved": "1.1.2",
+   "url": "https://github.com/advisories/GHSA-vpq2-c234-7xj6"
+  },
+  {
+   "name": "ckeditor5",
+   "severity": "low",
+   "title": "CKEditor: Cross-site scripting (XSS) in the engine package",
+   "range": ">=29.0.0 <47.7.4",
+   "resolved": "41.4.2",
+   "url": "https://github.com/advisories/GHSA-v6mg-96c6-gmpq"
+  },
+  {
+   "name": "fast-xml-parser",
+   "severity": "low",
+   "title": "fast-xml-parser: Quadratic CPU consumption scanning unterminated stop-node tags",
+   "range": "<=5.11.2",
+   "resolved": "5.11.2",
+   "url": "https://github.com/advisories/GHSA-474x-hrwr-fgx4"
+  },
+  {
+   "name": "undici",
+   "severity": "low",
+   "title": "undici Denial of Service attack via bad certificate data",
+   "range": ">=6.0.0 <6.21.2",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-cxrh-j4jr-qwg3"
+  },
+  {
+   "name": "undici",
+   "severity": "low",
+   "title": "undici vulnerable to Set-Cookie SameSite attribute downgrade via permissive substring matching",
+   "range": "<6.27.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-g8m3-5g58-fq7m"
+  },
+  {
+   "name": "undici",
+   "severity": "low",
+   "title": "undici vulnerable to HTTP response queue poisoning via keep-alive socket reuse",
+   "range": "<6.27.0",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-35p6-xmwp-9g52"
+  },
+  {
+   "name": "undici",
+   "severity": "low",
+   "title": "undici vulnerable to downstream response splitting via retry interceptor",
+   "range": "<6.28.1",
+   "resolved": "6.19.7",
+   "url": "https://github.com/advisories/GHSA-r53p-7pc4-xj5r"
+  }
+ ]
+}

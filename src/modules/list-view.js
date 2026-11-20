@@ -1,27 +1,18 @@
 // Generic list page for a content module: search, status filter, deterministic sorting and row actions.
 // Filter state lives in the URL so reload and back/forward restore it.
+//
+// Rows come one page at a time from ws.summaries.cataloguePage (computed on the server in the shared
+// workspace, in the browser in the local preview): only the visible columns are sent, never the whole
+// workspace. Searches are debounced; a response that arrives after a newer request is discarded.
 import { button, clear, h, icon, linkButton } from '../components/dom.js';
 import { confirmDialog, messageDialog } from '../components/dialog.js';
-import { envelopeBadges, errorDetails, toast } from '../components/feedback.js';
-import { hasUnpublishedChanges, publicName } from './shared/records.js';
-import { routeFor } from './shared/routes.js';
-import { comparePricing } from './shared/pricing.js';
+import { errorDetails, notice, statusBadge, toast } from '../components/feedback.js';
 import { formatDateTime } from './shared/format.js';
+import { LIST_DEFINITIONS, STATUS_FILTERS, sortsFor } from './shared/list-definitions.js';
 
-export const STATUS_FILTERS = {
-  active: { label: 'Active (draft + published)', test: env => env.record.status !== 'archived' },
-  draft: { label: 'Drafts', test: env => env.record.status === 'draft' },
-  published: { label: 'Published', test: env => env.record.status === 'published' },
-  changes: { label: 'Published with unpublished changes', test: hasUnpublishedChanges },
-  archived: { label: 'Archived', test: env => env.record.status === 'archived' },
-  all: { label: 'All records', test: () => true }
-};
-
-const byTitle = (a, b) => a.record.title.localeCompare(b.record.title, 'en', { sensitivity: 'base' }) || a.id.localeCompare(b.id);
-const BASE_SORTS = {
-  updated: { label: 'Last updated', compare: (a, b) => b.record.updatedAt.localeCompare(a.record.updatedAt) },
-  title: { label: 'Title A–Z', compare: () => 0 }
-};
+export { STATUS_FILTERS };
+const PAGE_SIZE = 50;
+const SEARCH_DELAY_MS = 250;
 
 export function toolNav(active) {
   const links = [['site', '#/site', 'Local preview site', 'globe'], ['media', '#/media', 'Media library', 'image'], ['taxonomies', '#/taxonomies', 'Taxonomies', 'tag'], ['redirects', '#/redirects', 'Planned redirects', 'redirect'], ['backup', '#/backup', 'Backup & import', 'database']];
@@ -29,18 +20,21 @@ export function toolNav(active) {
     links.map(([key, href, label, iconName]) => h('a', { href, class: ['tool-link', key === active && 'is-active'], 'aria-current': key === active ? 'page' : null }, icon(iconName), label)));
 }
 
+const rowBadges = row => h('span', { class: 'badge-row' }, statusBadge(row.status),
+  row.unpublishedChanges ? h('span', { class: 'status-badge status-changes', title: 'The working draft differs from the published snapshot' }, 'Unpublished changes') : null);
+
 export async function createListView({ def, app, params }) {
   const ws = await app.workspace();
-  let ctx = await ws.loadContext();
-  const sorts = { ...BASE_SORTS, ...def.sorts };
+  const columns = LIST_DEFINITIONS[def.kind].columns;
+  const sorts = sortsFor(def.kind);
   const state = {
     q: params.get('q') || '',
     status: STATUS_FILTERS[params.get('status')] ? params.get('status') : 'active',
     sort: sorts[params.get('sort')] ? params.get('sort') : 'updated'
   };
-  const results = h('div', { class: 'list-results' });
+  let rows = [], summary = null, next = null, failed = null, loading = false, sequence = 0, searchTimer = null;
+  const results = h('div', { class: 'list-results', 'aria-busy': 'false' });
   const countEl = h('p', { class: 'list-count', role: 'status', 'aria-live': 'polite' });
-  const all = () => [...ctx.records.values()].filter(env => env.kind === def.kind);
 
   function syncUrl() {
     const query = new URLSearchParams();
@@ -51,50 +45,53 @@ export async function createListView({ def, app, params }) {
     app.replaceRoute(`#/${def.path}${qs ? `?${qs}` : ''}`);
   }
 
-  function rows() {
-    const term = state.q.trim().toLowerCase();
-    const sort = sorts[state.sort];
-    const compare = state.sort === 'price' ? (a, b) => comparePricing(a.record.pricing, b.record.pricing) : sort.compare;
-    return all()
-      .filter(STATUS_FILTERS[state.status].test)
-      .filter(env => !term || def.searchText(env).toLowerCase().includes(term))
-      .sort((a, b) => compare(a, b) || byTitle(a, b));
+  // Loads the first page (or the next page when `append`). Only the newest request may update the screen.
+  async function load({ append = false } = {}) {
+    const id = ++sequence;
+    loading = true; results.setAttribute('aria-busy', 'true'); render();
+    try {
+      const page = await ws.summaries.cataloguePage(def.kind, { q: state.q, status: state.status, sort: state.sort, after: append ? next : null, limit: PAGE_SIZE });
+      if (id !== sequence) return;
+      rows = append ? [...rows, ...page.rows] : page.rows;
+      summary = page; next = page.next; failed = null;
+    } catch (err) {
+      if (id !== sequence) return;
+      failed = err;
+    } finally {
+      if (id === sequence) { loading = false; results.setAttribute('aria-busy', 'false'); render(); }
+    }
   }
+  const reload = () => load();
 
-  async function reload() {
-    ctx = await ws.loadContext();
-    render();
-  }
-
-  async function archive(env) {
+  async function archive(row) {
     const ok = await confirmDialog({
-      title: `Archive “${env.record.title}”?`,
-      body: `${env.record.status === 'published' ? 'It will be removed from the local preview. ' : ''}The record, images and route history are kept and the slug stays reserved. You can restore it to draft later.`,
+      title: `Archive “${row.title}”?`,
+      body: `${row.status === 'published' ? 'It will be removed from the local preview. ' : ''}The record, images and route history are kept and the slug stays reserved. You can restore it to draft later.`,
       confirmLabel: 'Archive', danger: true
     });
     if (!ok) return;
     try {
-      await ws.content.archive(env.id, { expectedVersion: env.record.version });
-      toast(`Archived “${env.record.title}”.`);
+      await ws.content.archive(row.id, { expectedVersion: row.version });
+      toast(`Archived “${row.title}”.`);
     } catch (err) {
       await messageDialog({ title: 'Not archived', body: errorDetails(err) });
     }
     await reload();
   }
 
-  async function restore(env) {
+  async function restore(row) {
     try {
-      await ws.content.restore(env.id, { expectedVersion: env.record.version });
-      toast(`Restored “${env.record.title}” to draft. Publish it again when ready.`);
+      await ws.content.restore(row.id, { expectedVersion: row.version });
+      toast(`Restored “${row.title}” to draft. Publish it again when ready.`);
     } catch (err) {
       await messageDialog({ title: 'Not restored', body: errorDetails(err) });
     }
     await reload();
   }
 
-  async function duplicate(env) {
+  async function duplicate(row) {
     try {
-      const copy = await ws.content.duplicate(env.id);
+      const copy = await ws.content.duplicate(row.id);
       toast(`Created draft copy “${copy.record.title}”.`);
       app.navigate(`#/${def.path}/${copy.id}`);
     } catch (err) {
@@ -103,47 +100,56 @@ export async function createListView({ def, app, params }) {
   }
 
   function render() {
-    const list = rows();
-    const everything = all();
-    const counts = { published: 0, draft: 0, archived: 0 };
-    for (const env of everything) counts[env.record.status] += 1;
-    countEl.textContent = `${list.length} shown · ${everything.length} total (${counts.published} published, ${counts.draft} draft, ${counts.archived} archived)`;
     clear(results);
-    if (!everything.length) {
+    if (failed) {
+      countEl.textContent = '';
+      results.append(notice('error', h('strong', null, `${def.plural} could not be loaded. `), errorDetails(failed), ' ', button('Try again', { variant: 'secondary', onClick: () => load() })));
+      return;
+    }
+    if (!summary) {
+      countEl.textContent = '';
+      results.append(h('p', { class: 'muted' }, `Loading ${def.plural.toLowerCase()}…`));
+      return;
+    }
+    const { counts, total, filtered } = summary;
+    const shown = rows.length < filtered ? `${rows.length} of ${filtered} shown` : `${filtered} shown`;
+    countEl.textContent = `${shown} · ${total} total (${counts.published || 0} published, ${counts.draft || 0} draft, ${counts.archived || 0} archived)${loading ? ' · updating…' : ''}`;
+    if (!total) {
       results.append(h('div', { class: 'empty-state panel' }, h('span', null, icon(def.icon)), h('strong', null, `No ${def.plural.toLowerCase()} yet`),
         h('p', null, `Create the first ${def.label.toLowerCase()}. Only a title is needed to save a draft.`),
         linkButton(def.addLabel, `#/${def.path}/new`, { variant: 'primary', iconName: 'plus' })));
       return;
     }
-    if (!list.length) {
+    if (!rows.length) {
       results.append(h('div', { class: 'empty-state panel' }, h('span', null, icon('search')), h('strong', null, `No ${def.plural.toLowerCase()} match these filters`),
         h('p', null, 'Change the search text or status filter.'),
-        button('Clear filters', { onClick: () => { state.q = ''; state.status = 'active'; searchInput.value = ''; statusSelect.value = 'active'; syncUrl(); render(); } })));
+        button('Clear filters', { onClick: () => { state.q = ''; state.status = 'active'; searchInput.value = ''; statusSelect.value = 'active'; syncUrl(); load(); } })));
       return;
     }
     results.append(h('div', { class: 'table-scroll panel table-panel' }, h('table', { class: 'data-table' },
       h('caption', { class: 'visually-hidden' }, `${def.plural}: ${STATUS_FILTERS[state.status].label}, sorted by ${sorts[state.sort].label}`),
-      h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Title'), h('th', { scope: 'col' }, 'Status'), def.columns.map(c => h('th', { scope: 'col' }, c.label)), h('th', { scope: 'col' }, 'Updated (EAT)'), h('th', { scope: 'col' }, h('span', { class: 'visually-hidden' }, 'Actions')))),
-      h('tbody', null, list.map(env => h('tr', null,
-        h('td', { class: 'cell-title' }, h('a', { href: `#/${def.path}/${env.id}` }, env.record.title), h('small', null, routeFor(env.kind, env.record.slug) || 'No slug yet'),
-          def.kind === 'destination' && publicName(env.record) !== env.record.title ? h('small', null, `Public: ${publicName(env.record)}`) : null),
-        h('td', null, envelopeBadges(env)),
-        def.columns.map(c => h('td', null, c.cell(env, ctx))),
-        h('td', null, formatDateTime(env.record.updatedAt)),
+      h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Title'), h('th', { scope: 'col' }, 'Status'), columns.map(c => h('th', { scope: 'col' }, c.label)), h('th', { scope: 'col' }, 'Updated (EAT)'), h('th', { scope: 'col' }, h('span', { class: 'visually-hidden' }, 'Actions')))),
+      h('tbody', null, rows.map(row => h('tr', null,
+        h('td', { class: 'cell-title' }, h('a', { href: `#/${def.path}/${row.id}` }, row.title), h('small', null, row.route || 'No slug yet'),
+          row.publicName ? h('small', null, `Public: ${row.publicName}`) : null),
+        h('td', null, rowBadges(row)),
+        row.cells.map(cell => h('td', null, cell)),
+        h('td', null, formatDateTime(row.updatedAt)),
         h('td', { class: 'row-actions' },
-          linkButton('Edit', `#/${def.path}/${env.id}`, { variant: 'ghost', 'aria-label': `Edit ${env.record.title}` }),
-          linkButton('Preview', `#/${def.path}/${env.id}/preview`, { variant: 'ghost', 'aria-label': `Preview ${env.record.title}` }),
-          button('Duplicate', { variant: 'ghost', 'aria-label': `Duplicate ${env.record.title}`, onClick: () => duplicate(env) }),
-          env.record.status === 'archived'
-            ? button('Restore', { variant: 'ghost', 'aria-label': `Restore ${env.record.title} to draft`, onClick: () => restore(env) })
-            : button('Archive', { variant: 'ghost-danger', 'aria-label': `Archive ${env.record.title}`, onClick: () => archive(env) }))))))));
+          linkButton('Edit', `#/${def.path}/${row.id}`, { variant: 'ghost', 'aria-label': `Edit ${row.title}` }),
+          linkButton('Preview', `#/${def.path}/${row.id}/preview`, { variant: 'ghost', 'aria-label': `Preview ${row.title}` }),
+          button('Duplicate', { variant: 'ghost', 'aria-label': `Duplicate ${row.title}`, onClick: () => duplicate(row) }),
+          row.status === 'archived'
+            ? button('Restore', { variant: 'ghost', 'aria-label': `Restore ${row.title} to draft`, onClick: () => restore(row) })
+            : button('Archive', { variant: 'ghost-danger', 'aria-label': `Archive ${row.title}`, onClick: () => archive(row) }))))))));
+    if (next) results.append(h('div', { class: 'btn-row list-more' }, button(loading ? 'Loading…' : `Show more (${filtered - rows.length} more)`, { variant: 'secondary', disabled: loading, onClick: () => load({ append: true }) })));
   }
 
-  const searchInput = h('input', { id: `${def.path}-search`, type: 'search', class: 'input', value: state.q, placeholder: `Search ${def.plural.toLowerCase()} by title or slug`, on: { input: e => { state.q = e.target.value; syncUrl(); render(); } } });
-  const statusSelect = h('select', { id: `${def.path}-status`, class: 'input', on: { change: e => { state.status = e.target.value; syncUrl(); render(); } } },
+  const searchInput = h('input', { id: `${def.path}-search`, type: 'search', class: 'input', value: state.q, placeholder: `Search ${def.plural.toLowerCase()} by title or slug`, on: { input: e => { state.q = e.target.value; syncUrl(); clearTimeout(searchTimer); searchTimer = setTimeout(() => load(), SEARCH_DELAY_MS); } } });
+  const statusSelect = h('select', { id: `${def.path}-status`, class: 'input', on: { change: e => { state.status = e.target.value; syncUrl(); load(); } } },
     Object.entries(STATUS_FILTERS).map(([value, f]) => h('option', { value }, f.label)));
   statusSelect.value = state.status;
-  const sortSelect = h('select', { id: `${def.path}-sort`, class: 'input', on: { change: e => { state.sort = e.target.value; syncUrl(); render(); } } },
+  const sortSelect = h('select', { id: `${def.path}-sort`, class: 'input', on: { change: e => { state.sort = e.target.value; syncUrl(); load(); } } },
     Object.entries(sorts).map(([value, s]) => h('option', { value }, s.label)));
   sortSelect.value = state.sort;
 
@@ -160,10 +166,11 @@ export async function createListView({ def, app, params }) {
       h('div', { class: 'field' }, h('label', { for: sortSelect.id, class: 'field-label' }, 'Sort by'), sortSelect)),
     countEl,
     results);
-  render();
+  // The first page is loaded before the view is mounted, so direct links and reloads render complete.
+  await load();
   return {
     el, title: def.plural, breadcrumb: `${def.navGroup} / ${def.listLabel}`, navGroup: def.navGroup, navLabel: def.listLabel,
     mounted() { el.querySelector('h1').focus({ preventScroll: true }); },
-    destroy() { offEvents(); }
+    destroy() { offEvents(); clearTimeout(searchTimer); sequence++; }
   };
 }

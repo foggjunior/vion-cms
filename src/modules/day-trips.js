@@ -6,8 +6,7 @@ import { confirmDialog, openDialog } from '../components/dialog.js';
 import { notice } from '../components/feedback.js';
 import { fieldIdFor } from '../components/fields.js';
 import { createRepeater } from '../components/repeater.js';
-import { DURATION_LIMITS, compareDayTrips, copyDefaults, formatDuration, newScheduleItem } from './shared/day-trips.js';
-import { describePrice } from './shared/pricing.js';
+import { DURATION_LIMITS, copyDefaults, newScheduleItem } from './shared/day-trips.js';
 import { manageTaxonomiesLink, tagsField } from './term-fields.js';
 import { pricingSection } from './pricing-section.js';
 
@@ -111,7 +110,6 @@ function lists(ed) {
   ];
 }
 
-const termLabels = (ids, ctx) => ids.map(id => ctx.taxonomies.get(id)?.label || 'Unresolved value').join(', ');
 
 export const dayTripModule = {
   kind: 'dayTrip', path: 'day-trips', label: 'Day trip', plural: 'Day Trips', icon: 'map',
@@ -125,18 +123,7 @@ export const dayTripModule = {
     { id: 'pricing', label: 'Pricing', render: pricingSection },
     'media', 'seo', 'preview'
   ],
-  columns: [
-    { label: 'Duration', cell: env => formatDuration(env.record.duration) || '—' },
-    { label: 'Destinations', cell: (env, ctx) => env.record.destinationIds.map(id => ctx.records.get(id)?.record.title || 'Missing').join(', ') || '—' },
-    { label: 'Tags', cell: (env, ctx) => termLabels(env.record.tagIds, ctx) || '—' },
-    { label: 'Price', cell: env => describePrice(env.record.pricing).text },
-    { label: 'Featured / order', cell: env => [env.record.featured ? 'Featured' : '', env.record.displayOrder ?? ''].filter(v => v !== '').join(' · ') || '—' }
-  ],
-  sorts: {
-    order: { label: 'Featured, then display order', compare: (a, b) => compareDayTrips(a.record, b.record) },
-    price: { label: 'Price (missing last)', compare: null }
-  },
-  searchText: env => [env.record.title, env.record.slug, env.record.summary].join(' '),
+  // List columns, sorts and search text: src/modules/shared/list-definitions.js (shared with the server).
   listExtras: () => h('div', { class: 'btn-row list-extras' },
     linkButton('Day-trip defaults', '#/day-trips/defaults', { variant: 'ghost', iconName: 'copy' }),
     linkButton('Local day-trip listing', '#/site/tours/day-trips', { variant: 'ghost', iconName: 'globe' }),

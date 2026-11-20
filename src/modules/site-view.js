@@ -70,7 +70,7 @@ export async function createSiteView({ app, path, params = new URLSearchParams()
   }
 
   const catalogueKinds={'/tours':'tour','/destinations':'destination','/accommodations':'accommodation','/tours/zanzibar-trips':'tour','/tours/climbing-trips':'tour'};
-  if(catalogueKinds[path]){const kind=catalogueKinds[path];let entries=published.filter(p=>p.kind===kind&&publicPage(p));if(path.endsWith('zanzibar-trips'))entries=entries.filter(p=>p.snapshot.destinationIds?.some(id=>/zanzibar/i.test(ctx.records.get(id)?.record.title||'')));if(path.endsWith('climbing-trips'))entries=entries.filter(p=>/climb|trek|mountain/i.test(ctx.publishedTerms.get(p.snapshot.typeId)?.label||'')||p.snapshot.tagIds?.some(id=>/climb|trek/i.test(ctx.publishedTerms.get(id)?.label||'')));const list=h('div',{class:'card-grid'}),search=h('input',{class:'input',type:'search','aria-label':'Search catalogue',placeholder:'Search…'});const draw=()=>{const items=entries.filter(p=>p.snapshot.title.toLowerCase().includes(search.value.toLowerCase()));list.replaceChildren(...items.map(pub=>renderCard(pub.snapshot,{resolver,scope,href:'#/site'+pub.route})),items.length?null:h('p',null,'No published content matches.'));};search.addEventListener('input',draw);draw();return result(frame(kind==='tour'?'Tours':kind==='destination'?'Destinations':'Accommodations',reviewContent,search,list),'Catalogue preview');}
+  if(catalogueKinds[path]){const kind=catalogueKinds[path];let entries=published.filter(p=>p.kind===kind&&publicPage(p));if(path.endsWith('zanzibar-trips'))entries=entries.filter(p=>p.snapshot.destinationIds?.some(id=>/zanzibar/i.test(ctx.records.get(id)?.record.title||'')));if(path.endsWith('climbing-trips'))entries=entries.filter(p=>(p.snapshot.typeIds ?? [p.snapshot.typeId]).some(id => /climb|trek|mountain/i.test(ctx.publishedTerms.get(id)?.label || ''))||p.snapshot.tagIds?.some(id=>/climb|trek/i.test(ctx.publishedTerms.get(id)?.label||'')));const list=h('div',{class:'card-grid'}),search=h('input',{class:'input',type:'search','aria-label':'Search catalogue',placeholder:'Search…'});const draw=()=>{const items=entries.filter(p=>p.snapshot.title.toLowerCase().includes(search.value.toLowerCase()));list.replaceChildren(...items.map(pub=>renderCard(pub.snapshot,{resolver,scope,href:'#/site'+pub.route})),items.length?null:h('p',null,'No published content matches.'));};search.addEventListener('input',draw);draw();return result(frame(kind==='tour'?'Tours':kind==='destination'?'Destinations':'Accommodations',reviewContent,search,list),'Catalogue preview');}
   if(reviewContent&&path!==HUB_ROUTES.dayTrips)return result(frame('Website preview',reviewContent),'Website preview');
 
   if (path === HUB_ROUTES.dayTrips || path === `${HUB_ROUTES.dayTrips}/`) {
@@ -120,7 +120,7 @@ export async function createSiteView({ app, path, params = new URLSearchParams()
   if (!pub || !publicPage(pub)) {
     const el = frame('Not visible in local preview', ...notes,
       h('div', { class: 'panel empty-panel' }, icon('alert'),
-        h('p', null, pub ? 'This accommodation is published but its public page is disabled (prototype setting, A3 unresolved).' : `${path} is not published. Drafts, unpublished and archived records are not visible here.`),
+        h('p', null, pub ? 'This accommodation is published for staff reference and its public page is disabled.' : `${path} is not published. Drafts, unpublished and archived records are not visible here.`),
         linkButton('Back to published content', '#/site')));
     return result(el, 'Not visible');
   }

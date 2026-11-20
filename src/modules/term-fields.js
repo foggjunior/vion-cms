@@ -39,11 +39,13 @@ export function termSelect(ed, key, namespace) {
 }
 
 // sectionId: the editor section to re-render after removing unresolved values.
-export function tagsField(ed, { sectionId, hint } = {}) {
-  const id = fieldIdFor('tagIds');
-  const selected = ed.model.tagIds;
-  const active = namespaceTerms(ed.ctx.taxonomies.values(), 'tag').filter(t => t.active !== false);
-  const refs = selected.map(tid => termReference(tid, 'tag', ed.ctx));
+export function tagsField(ed, { sectionId, hint, namespace = 'tag', key = 'tagIds' } = {}) {
+  const id = fieldIdFor(key);
+  const selected = ed.model[key];
+  const label = TAXONOMY_PLURALS[namespace];
+  const group = TAXONOMY_NAMESPACES[namespace].toLowerCase();
+  const active = namespaceTerms(ed.ctx.taxonomies.values(), namespace).filter(t => t.active !== false);
+  const refs = selected.map(tid => termReference(tid, namespace, ed.ctx));
   const inactive = refs.filter(r => r.state === 'inactive');
   const problems = refs.filter(r => r.state === 'unresolved' || r.state === 'wrong-namespace');
   const box = (term, label) => h('label', { class: 'check' },
@@ -54,17 +56,17 @@ export function tagsField(ed, { sectionId, hint } = {}) {
       ed.changed();
     } } }), h('span', null, label));
   return h('fieldset', { class: 'field field-wide', id },
-    h('legend', { class: 'field-label' }, 'Tags'),
+    h('legend', { class: 'field-label' }, label),
     hint ? h('p', { class: 'field-hint' }, hint) : null,
     active.length || inactive.length
       ? h('div', { class: 'check-grid' }, active.map(t => box(t, t.label)), inactive.map(r => box(r.term, `${r.term.label} (inactive — kept)`)))
-      : h('p', { class: 'muted' }, 'No active tags yet. ', linkButton('Add tags under Taxonomies', MANAGE_HREF, { variant: 'ghost' })),
+      : h('p', { class: 'muted' }, 'No active ' + label.toLowerCase() + ' yet. ', linkButton('Add ' + label.toLowerCase() + ' under Taxonomies', MANAGE_HREF, { variant: 'ghost' })),
     inactive.length ? h('p', { class: 'msg-warning term-note' }, `${inactive.map(r => `“${r.term.label}”`).join(', ')} ${inactive.length === 1 ? 'is' : 'are'} inactive: kept on this record and still displayed, but not offered for new selections. Untick to remove.`) : null,
     problems.length ? h('div', { class: 'term-problems' },
-      h('p', { class: 'msg-error' }, 'These saved tag values are not usable tags and block publishing:'),
-      h('ul', { class: 'error-list' }, problems.map(r => h('li', null, stateNote(r, 'tag'), ' ',
-        ed.readOnly ? null : button('Remove', { variant: 'ghost', 'aria-label': `Remove tag value ${r.term ? r.term.label : shortId(r.id)}`, onClick: () => {
-          ed.model.tagIds = ed.model.tagIds.filter(t => t !== r.id);
+      h('p', { class: 'msg-error' }, 'These saved ' + group + ' values block publishing:'),
+      h('ul', { class: 'error-list' }, problems.map(r => h('li', null, stateNote(r, group), ' ',
+        ed.readOnly ? null : button('Remove', { variant: 'ghost', 'aria-label': 'Remove ' + group + ' value ' + (r.term ? r.term.label : shortId(r.id)), onClick: () => {
+          ed.model[key] = ed.model[key].filter(t => t !== r.id);
           ed.changed();
           if (sectionId) ed.refreshSection(sectionId);
         } }))))) : null,

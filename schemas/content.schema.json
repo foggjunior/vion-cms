@@ -31,7 +31,9 @@
         "schemaVersion"
       ],
       "properties": {
-        "destinationType": {"type": "string"},
+        "destinationType": {
+          "type": "string"
+        },
         "id": {
           "type": "string",
           "format": "uuid"
@@ -201,6 +203,9 @@
         },
         "order": {
           "type": "integer"
+        },
+        "featured": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -384,6 +389,12 @@
         },
         "locationName": {
           "type": "string"
+        },
+        "mapLink": {
+          "type": "string"
+        },
+        "featured": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -402,7 +413,47 @@
         "schemaVersion"
       ],
       "properties": {
-        "publicRates": {"type": "array", "items": {"type": "object", "required": ["id", "residency", "traveller", "season", "currency", "amount"], "properties": {"id": {"type": "string", "minLength": 1}, "residency": {"type": "string", "minLength": 1}, "traveller": {"type": "string", "minLength": 1}, "season": {"type": "string", "minLength": 1}, "currency": {"type": "string", "pattern": "^[A-Z]{3}$"}, "amount": {"type": "string", "pattern": "^[0-9]+([.][0-9]+)?$"}}, "additionalProperties": false}},
+        "publicRates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "residency",
+              "traveller",
+              "season",
+              "currency",
+              "amount"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "residency": {
+                "type": "string",
+                "minLength": 1
+              },
+              "traveller": {
+                "type": "string",
+                "minLength": 1
+              },
+              "season": {
+                "type": "string",
+                "minLength": 1
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "amount": {
+                "type": "string",
+                "pattern": "^[0-9]+([.][0-9]+)?$"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
         "id": {
           "type": "string",
           "format": "uuid"
@@ -632,6 +683,32 @@
                     }
                   }
                 }
+              },
+              "photos": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "assetId",
+                    "alt"
+                  ],
+                  "properties": {
+                    "assetId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "decorative": {
+                      "type": "boolean"
+                    },
+                    "caption": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
               }
             },
             "additionalProperties": false
@@ -665,7 +742,8 @@
             "mode": {
               "enum": [
                 "request",
-                "manualFrom"
+                "manualFrom",
+                "groupUsd"
               ]
             },
             "amount": {
@@ -685,9 +763,27 @@
             },
             "applicability": {
               "type": "string"
+            },
+            "group2": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
+            },
+            "group4": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
+            },
+            "group6": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
             }
           },
           "additionalProperties": false
+        },
+        "typeIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
@@ -922,7 +1018,8 @@
             "mode": {
               "enum": [
                 "request",
-                "manualFrom"
+                "manualFrom",
+                "groupUsd"
               ]
             },
             "amount": {
@@ -942,6 +1039,18 @@
             },
             "applicability": {
               "type": "string"
+            },
+            "group2": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
+            },
+            "group4": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
+            },
+            "group6": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
             }
           },
           "additionalProperties": false

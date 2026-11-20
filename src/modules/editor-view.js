@@ -43,7 +43,11 @@ function setPath(obj, path, value) {
 const CONTENT_ADAPTER = {
   slug: true,
   find: (ctx, id, def) => { const env = id ? ctx.records.get(id) : null; return env?.kind === def.kind ? env : null; },
-  newForm: (ctx, def) => recordToForm(newRecord(def.kind)),
+  newForm: (ctx, def) => {
+    const record = newRecord(def.kind);
+    if (record.pricing) record.pricing = { mode: 'groupUsd' };
+    return recordToForm(record);
+  },
   toForm: env => recordToForm(env.record),
   fromForm: form => formToRecord(form),
   titleOf: record => record.title?.trim(),

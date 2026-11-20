@@ -5,6 +5,7 @@ import { newId } from './format.js';
 import { SITE_KIND_LABELS, editorHref, siteAssetRefs, siteRecordTitle } from './site.js';
 import { TAXONOMY_PUBLICATION_ID } from './taxonomy.js';
 import { parseDuration } from './day-trips.js';
+import { GROUP_PRICE_FIELDS } from './pricing.js';
 
 export { TAXONOMY_NAMESPACES } from './taxonomy.js';
 export const KINDS = Object.freeze(['destination', 'accommodation', 'tour', 'dayTrip']);
@@ -24,10 +25,10 @@ const emptySeo = () => ({ title: '', description: '', shareAssetId: null, noinde
 
 export function newRecord(kind, { id = newId(), now = new Date().toISOString(), title = '' } = {}) {
   const base = { id, kind, title, slug: '', status: 'draft', createdAt: now, updatedAt: now, version: 1, schemaVersion: 1, cover: null, gallery: [], seo: emptySeo() };
-  if (kind === 'destination') return { ...base, internalName: '', displayName: '', overview: '', wildlife: '', highlights: '', signatureExperiences: '', activities: [], bestTime: '', travelTips: [] };
+  if (kind === 'destination') return { ...base, internalName: '', displayName: '', overview: '', wildlife: '', highlights: '', signatureExperiences: '', activities: [], bestTime: '', travelTips: [], featured: false };
   if (kind === 'accommodation') return {
     ...base, destinationId: null, locationName: '', noDestinationReason: '', type: '', standard: '', setting: 'unspecified', description: '',
-    amenities: [], activities: [], publicPhone: '', publicPhoneVisible: false, website: '', publicPageEnabled: true
+    amenities: [], activities: [], publicPhone: '', publicPhoneVisible: false, website: '', mapLink: '', featured: false, publicPageEnabled: false
   };
   if (kind === 'tour') return {
     ...base, summary: '', overview: '', durationDays: null, destinationIds: [], typeId: null, categoryId: null, standardId: null,
@@ -46,7 +47,7 @@ export function newWorkflow() {
 }
 
 export function newItineraryDay(dayNumber) {
-  return { id: newId(), dayNumber, title: '', description: '', destinationIds: [], accommodationIds: [], meals: [], activities: [] };
+  return { id: newId(), dayNumber, title: '', description: '', destinationIds: [], accommodationIds: [], meals: [], activities: [], photos: [] };
 }
 
 export function newTravelTip() { return { id: newId(), title: '', body: '' }; }
@@ -66,8 +67,9 @@ export function recordToForm(record) {
   form.gallery = form.gallery || [];
   if (record.kind === 'tour') form.publicRates = form.publicRates || [];
   if (record.kind === 'tour') {
+    form.typeIds = [...tourTypeIds(form)];
     form.pricing = { mode: 'request', ...(form.pricing || {}) };
-    form.itinerary = (form.itinerary || []).map(day => ({ destinationIds: [], accommodationIds: [], meals: [], activities: [], ...day }));
+    form.itinerary = (form.itinerary || []).map(day => ({ destinationIds: [], accommodationIds: [], meals: [], activities: [], photos: [], ...day }));
   }
   if (record.kind === 'dayTrip') {
     form.pricing = { mode: 'request', ...(form.pricing || {}) };
@@ -87,6 +89,7 @@ const cleanList = list => {
   return out;
 };
 const uniqueIds = list => [...new Set((list || []).filter(Boolean))];
+const tourTypeIds = record => record.typeIds ?? (record.typeId ? [record.typeId] : []);
 
 // Converts a form model into a schema-shaped draft. Returns field issues for malformed numeric input.
 export function formToRecord(form) {
@@ -109,12 +112,14 @@ export function formToRecord(form) {
   if (record.kind === 'destination') {
     for (const key of ['internalName', 'displayName']) record[key] = String(record[key] || '').trim();
     record.destinationType = String(record.destinationType || '').trim();
+    record.featured = !!record.featured;
     record.activities = cleanList(record.activities);
     record.travelTips = (record.travelTips || []).map(tip => ({ id: tip.id, title: String(tip.title || '').trim(), body: String(tip.body || '').trim() }));
     integerField('order', { label: 'Order', optional: true });
   }
   if (record.kind === 'accommodation') {
-    for (const key of ['type', 'standard', 'publicPhone', 'website', 'locationName']) record[key] = String(record[key] || '').trim();
+    for (const key of ['type', 'standard', 'publicPhone', 'website', 'mapLink', 'locationName']) record[key] = String(record[key] || '').trim();
+    record.featured = !!record.featured;
     record.amenities = cleanList(record.amenities);
     record.activities = cleanList(record.activities);
     record.destinationId = record.destinationId || null;
@@ -125,14 +130,16 @@ export function formToRecord(form) {
     integerField('recommendedRank', { min: 0, label: 'Recommended rank', optional: true });
     record.destinationIds = uniqueIds(record.destinationIds);
     record.tagIds = uniqueIds(record.tagIds);
-    for (const key of ['typeId', 'categoryId', 'standardId']) record[key] = record[key] || null;
+    record.typeIds = uniqueIds(tourTypeIds(record));
+    record.typeId = record.typeIds[0] || null;
+    for (const key of ['categoryId', 'standardId']) record[key] = record[key] || null;
     record.inclusions = cleanList(record.inclusions);
     record.exclusions = cleanList(record.exclusions);
     record.itinerary = (record.itinerary || []).map((day, index) => ({
       id: day.id, dayNumber: index + 1, title: String(day.title || '').trim(), description: String(day.description || '').trim(),
       destinationIds: uniqueIds(day.destinationIds), accommodationIds: uniqueIds(day.accommodationIds),
       ...(day.accommodationRooms?{accommodationRooms:day.accommodationRooms.filter(r=>(day.accommodationIds||[]).includes(r.accommodationId)).map(r=>({accommodationId:r.accommodationId,roomId:r.roomId,roomName:String(r.roomName||'').trim()}))}:{}),
-      meals: cleanList(day.meals), activities: cleanList(day.activities)
+      meals: cleanList(day.meals), activities: cleanList(day.activities), photos: (day.photos || []).map(cleanPlacement)
     }));
     record.pricing = cleanPricing(form.pricing);
     if (record.publicRates) record.publicRates = record.publicRates.map(rate => ({
@@ -163,6 +170,14 @@ function cleanPlacement(p) {
 }
 
 function cleanPricing(pricing) {
+  if (pricing?.mode === 'groupUsd') {
+    const out = { mode: 'groupUsd' };
+    for (const key of GROUP_PRICE_FIELDS) {
+      const amount = String(pricing[key] ?? '').trim();
+      if (amount) out[key] = amount;
+    }
+    return out;
+  }
   // Request mode never stores an amount, so it can never be read as zero.
   if (!pricing || pricing.mode !== 'manualFrom') return { mode: pricing?.mode === undefined ? 'request' : pricing.mode };
   const out = { mode: 'manualFrom' };
@@ -197,6 +212,11 @@ export function assetRefs(record) {
   if (path) for (const assetId of writingAssetIds(record[path])) refs.push({path,assetId,role:'inline photo'});
   if (record.cover?.assetId) refs.push({ path: 'cover', assetId: record.cover.assetId, role: 'cover' });
   (record.gallery || []).forEach((p, i) => refs.push({ path: `gallery.${i}`, assetId: p.assetId, role: 'gallery' }));
+  if (record.kind === 'tour') (record.itinerary || []).forEach((day, i) => {
+    (day.photos || []).forEach((photo, j) => refs.push({
+      path: 'itinerary.' + i + '.photos.' + j, assetId: photo.assetId, role: 'itinerary photo'
+    }));
+  });
   if (record.seo?.shareAssetId) refs.push({ path: 'seo.shareAssetId', assetId: record.seo.shareAssetId, role: 'share image' });
   return refs;
 }
@@ -206,7 +226,10 @@ export function taxonomyRefs(record) {
   if (record.kind === 'dayTrip') return (record.tagIds || []).map(id => ({ path: 'tagIds', id, namespace: 'tag' }));
   if (record.kind !== 'tour') return [];
   const refs = [];
-  for (const [key, namespace] of [['typeId', 'type'], ['categoryId', 'category'], ['standardId', 'standard']]) {
+  for (const id of tourTypeIds(record)) {
+    refs.push({ path: record.typeIds ? 'typeIds' : 'typeId', id, namespace: 'type' });
+  }
+  for (const [key, namespace] of [['categoryId', 'category'], ['standardId', 'standard']]) {
     if (record[key]) refs.push({ path: key, id: record[key], namespace });
   }
   for (const id of record.tagIds || []) refs.push({ path: 'tagIds', id, namespace: 'tag' });

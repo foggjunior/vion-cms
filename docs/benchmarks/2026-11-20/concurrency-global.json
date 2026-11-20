@@ -1,0 +1,25 @@
+{
+  "pairs": 50,
+  "results": [
+    {
+      "mode": "global",
+      "scenario": "different records",
+      "attempts": 100,
+      "succeeded": 50,
+      "stale": 50,
+      "other": 0,
+      "p50ms": 38,
+      "p95ms": 53.9
+    },
+    {
+      "mode": "global",
+      "scenario": "same record",
+      "attempts": 100,
+      "succeeded": 50,
+      "stale": 50,
+      "other": 0,
+      "p50ms": 33.1,
+      "p95ms": 55.9
+    }
+  ]
+}

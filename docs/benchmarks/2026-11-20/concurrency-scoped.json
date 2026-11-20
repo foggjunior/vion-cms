@@ -1,0 +1,25 @@
+{
+  "pairs": 50,
+  "results": [
+    {
+      "mode": "scoped",
+      "scenario": "different records",
+      "attempts": 100,
+      "succeeded": 100,
+      "stale": 0,
+      "other": 0,
+      "p50ms": 41.1,
+      "p95ms": 62.1
+    },
+    {
+      "mode": "scoped",
+      "scenario": "same record",
+      "attempts": 100,
+      "succeeded": 50,
+      "stale": 50,
+      "other": 0,
+      "p50ms": 38.8,
+      "p95ms": 57.6
+    }
+  ]
+}

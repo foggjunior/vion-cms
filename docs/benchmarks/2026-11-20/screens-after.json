@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-11-19T21:15:18.594Z",
+  "node": "v24.20.0",
+  "runs": 7,
+  "report": [
+    {
+      "size": 200,
+      "entries": 871,
+      "dashboard": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "summaries.dashboard"
+        ],
+        "bytes": 1939,
+        "p50ms": 1436,
+        "p95ms": 1576
+      },
+      "destinations": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "summaries.cataloguePage"
+        ],
+        "bytes": 14841,
+        "p50ms": 969,
+        "p95ms": 1446
+      }
+    },
+    {
+      "size": 600,
+      "entries": 2611,
+      "dashboard": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "summaries.dashboard"
+        ],
+        "bytes": 1940,
+        "p50ms": 1440,
+        "p95ms": 1482
+      },
+      "destinations": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "summaries.cataloguePage"
+        ],
+        "bytes": 15197,
+        "p50ms": 1463,
+        "p95ms": 1605
+      }
+    },
+    {
+      "size": 1200,
+      "entries": 5221,
+      "dashboard": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "summaries.dashboard"
+        ],
+        "bytes": 1955,
+        "p50ms": 2621,
+        "p95ms": 2891
+      },
+      "destinations": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "summaries.cataloguePage"
+        ],
+        "bytes": 15197,
+        "p50ms": 2081,
+        "p95ms": 2805
+      }
+    }
+  ]
+}

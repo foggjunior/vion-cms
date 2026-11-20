@@ -1,0 +1,374 @@
+{
+  "generatedAt": "2026-11-19T21:10:21.701Z",
+  "images": 22,
+  "results": {
+    "phone": {
+      "viewport": "390x844@3x",
+      "imageRequests": 22,
+      "imageBytes": 1101698,
+      "cls": 0,
+      "images": [
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 239,
+          "shown": 358,
+          "height": 239,
+          "hasDimensions": true,
+          "lazy": true
+        }
+      ]
+    },
+    "desktop": {
+      "viewport": "1440x900@1x",
+      "imageRequests": 22,
+      "imageBytes": 506787,
+      "cls": 0,
+      "images": [
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 760,
+          "shown": 728,
+          "height": 485,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 760,
+          "shown": 728,
+          "height": 485,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 760,
+          "shown": 728,
+          "height": 485,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 480,
+          "natural": 372,
+          "shown": 356,
+          "height": 237,
+          "hasDimensions": true,
+          "lazy": true
+        },
+        {
+          "requested": 800,
+          "natural": 760,
+          "shown": 728,
+          "height": 485,
+          "hasDimensions": true,
+          "lazy": true
+        }
+      ]
+    }
+  }
+}

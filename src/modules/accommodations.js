@@ -12,7 +12,8 @@ function basics(ed) {
       ed.text('type', { label: 'Type', required: 'publish', list: 'accommodation-type-examples', hint: 'Suggestions (Hotel, Lodge, Campsite) are audit examples, not fixed rules. Any text is allowed.' }),
       ed.text('standard', { label: 'Standard', required: 'publish', list: 'accommodation-standard-examples', hint: 'Suggestions include Luxury, Mid range and Budget. Existing legacy values are preserved; any text is allowed.' }),
       ed.select('setting', { label: 'Setting', options: Object.entries(ACCOMMODATION_SETTINGS).map(([value, label]) => ({ value, label })) }),
-      ed.checkbox('publicPageEnabled', { label: 'Public page enabled', hint: 'Prototype assumption: new records default to enabled. Real public visibility rules (A3) are not confirmed; this does not change any live route.' })),
+      ed.checkbox('featured', { label: 'Featured accommodation', hint: 'For staff reference.' }),
+      ed.model.publicPageEnabled ? ed.checkbox('publicPageEnabled', { label: 'Keep existing public feed entry', hint: 'Turn off to use this record only for quotations and itinerary references.' }) : null),
     h('datalist', { id: 'accommodation-type-examples' }, ACCOMMODATION_TYPE_EXAMPLES.map(v => h('option', { value: v }))),
     h('datalist', { id: 'accommodation-standard-examples' }, ACCOMMODATION_STANDARD_EXAMPLES.map(v => h('option', { value: v }))),
     ed.group('Page address', ed.slugField())
@@ -34,6 +35,7 @@ function location(ed) {
         onChange: () => ed.refreshSection('location')
       }),
       selected && !ed.ctx.published.has(selected.id) ? notice('warning', `“${selected.record.title}” is ${selected.record.status === 'archived' ? 'archived' : 'not published'}. Publish it before publishing this accommodation.`) : null,
+      ed.text('mapLink', { label: 'Map link', inputmode: 'url', placeholder: 'https://maps.google.com/…', hint: 'For staff reference.' }),
       ed.text('locationName', {label:'Location name (if not in destinations)',hint:'A free-text location captured while preparing an itinerary.'}),
       ed.model.destinationId ? null : ed.text('noDestinationReason', {
         label: 'Reason for no destination', multiline: true, rows: 3, required: 'publish',
@@ -53,10 +55,9 @@ function content(ed) {
 
 function contact(ed) {
   return [
-    notice('info', 'Public details only. Private supplier rates, contracts and contacts do not belong in these records.'),
+    notice('info', 'Use this contact information when preparing quotations and itineraries.'),
     ed.group(null,
-      ed.text('publicPhone', { label: 'Public phone', inputmode: 'tel', placeholder: '+255 700 000 000', hint: 'Optional. Validated when supplied.' }),
-      ed.checkbox('publicPhoneVisible', { label: 'Show phone publicly', hint: 'Hidden by default. When ticked, a valid phone number is required to publish.' }),
+      ed.text('publicPhone', { label: 'Accommodation phone', inputmode: 'tel', placeholder: '+255 700 000 000', hint: 'Optional. Validated when supplied.' }),
       ed.text('website', { label: 'Website', inputmode: 'url', placeholder: 'https://www.example.com', hint: 'Optional. Must be a full http:// or https:// address; other link types are rejected.' }))
   ];
 }
@@ -72,19 +73,5 @@ export const accommodationModule = {
     { id: 'contact', label: 'Contact', render: contact },
     privateRatesSection, 'media', 'seo', 'preview'
   ],
-  columns: [
-    {
-      label: 'Destination',
-      cell: (env, ctx) => {
-        const id = env.record.destinationId;
-        if (!id) return env.record.locationName || (env.record.noDestinationReason ? 'None (reason given)' : 'None');
-        const dest = ctx.records.get(id);
-        return dest ? `${dest.record.title}${ctx.published.has(id) ? '' : dest.record.status === 'archived' ? ' (archived)' : ' (draft)'}` : 'Missing record';
-      }
-    },
-    { label: 'Type · standard', cell: env => [env.record.type, env.record.standard].filter(Boolean).join(' · ') || '—' },
-    { label: 'Public page', cell: env => (env.record.publicPageEnabled === false ? 'Disabled' : 'Enabled') }
-  ],
-  sorts: {},
-  searchText: env => [env.record.title, env.record.slug, env.record.type, env.record.standard].join(' ')
+  // List columns, sorts and search text: src/modules/shared/list-definitions.js (shared with the server).
 };

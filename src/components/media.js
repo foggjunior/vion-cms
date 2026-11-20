@@ -116,13 +116,13 @@ export function coverField({ path = 'cover', idPath = path, label = 'Cover image
 }
 
 // Ordered gallery, separate from the cover. Items can be reordered, captioned or marked decorative.
-export function galleryField({ path = 'gallery', items, ctx, scope, pick, onChange, readOnly = false }) {
+export function galleryField({ path = 'gallery', items, ctx, scope, pick, onChange, readOnly = false, dayPhotos = false }) {
   const id = fieldIdFor(path);
   const repeater = createRepeater({
     items, readOnly, className: 'gallery-list',
     keyOf: (item, i) => `${item.assetId}-${i}`,
     itemLabel: (item, i) => `Gallery image ${i + 1}`,
-    emptyText: 'No gallery images. The cover is managed separately above.',
+    emptyText: dayPhotos ? 'No photos for this day.' : 'No gallery images. The cover is managed separately above.',
     onChange: () => onChange(),
     renderItem: (item, i) => {
       const asset = ctx.assets.get(item.assetId);
@@ -133,7 +133,7 @@ export function galleryField({ path = 'gallery', items, ctx, scope, pick, onChan
     }
   });
   async function addImages() {
-    const picked = await pick({ multiple: true, title: 'Add gallery images' });
+    const picked = await pick({ multiple: true, title: dayPhotos ? 'Add itinerary day photos' : 'Add gallery images' });
     if (!picked?.length) return;
     let skipped = 0;
     for (const asset of picked) {
@@ -146,8 +146,8 @@ export function galleryField({ path = 'gallery', items, ctx, scope, pick, onChan
   }
   const note = h('p', { class: 'field-hint', 'aria-live': 'polite' });
   return h('div', { class: 'field field-wide media-field' },
-    h('span', { class: 'field-label' }, 'Gallery images (ordered)'),
-    h('p', { class: 'field-hint' }, 'Three or more images (including the cover) are recommended. Images at least 1200px wide are recommended; smaller images only produce a warning.'),
+    h('span', { class: 'field-label' }, dayPhotos ? 'Day photos (optional)' : 'Gallery images (ordered)'),
+    dayPhotos ? null : h('p', { class: 'field-hint' }, 'Three or more images (including the cover) are recommended. Images at least 1200px wide are recommended; smaller images only produce a warning.'),
     repeater.el,
     readOnly ? null : button('Add images', { iconName: 'plus', id, onClick: addImages, 'aria-describedby': `${id}-error` }),
     note,

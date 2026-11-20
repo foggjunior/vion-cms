@@ -3,7 +3,7 @@ import { button, h } from '../components/dom.js';
 import { confirmDialog } from '../components/dialog.js';
 import { notice } from '../components/feedback.js';
 import { createRepeater } from '../components/repeater.js';
-import { compareOptionalNumber, convertLegacyTips, newTravelTip } from './shared/records.js';
+import { convertLegacyTips, newTravelTip } from './shared/records.js';
 
 function basics(ed) {
   return [
@@ -12,7 +12,8 @@ function basics(ed) {
       ed.text('destinationType', { label: 'Destination type', placeholder: 'National Park' }),
       ed.text('displayName', { label: 'Display name (public)', hint: 'Optional public name if it should differ from the title.' }),
       ed.text('internalName', { label: 'Internal / stored name', hint: 'Optional staff-facing name, for example a legacy stored name. Not shown publicly.' }),
-      ed.text('order', { label: 'Order', inputmode: 'numeric', placeholder: 'e.g. 10', hint: 'Optional whole number for manual list ordering (lower first). Proposed field.' })),
+      ed.checkbox('featured', { label: 'Feature on the homepage', hint: 'The homepage shows up to five featured destinations, using the order below.' }),
+      ed.text('order', { label: 'Order', inputmode: 'numeric', placeholder: 'e.g. 10', hint: 'Lower numbers appear first. Destinations without a number appear last.' })),
     ed.group('Page address', ed.slugField())
   ];
 }
@@ -78,12 +79,5 @@ export const destinationModule = {
     { id: 'tips', label: 'Travel Tips & Activities', render: tips },
     'media', 'seo', 'preview'
   ],
-  columns: [
-    { label: 'Images', cell: env => String((env.record.cover ? 1 : 0) + (env.record.gallery?.length || 0)) },
-    { label: 'Order', cell: env => (env.record.order ?? '—').toString() }
-  ],
-  sorts: {
-    order: { label: 'Manual order', compare: compareOptionalNumber('order') }
-  },
-  searchText: env => [env.record.title, env.record.displayName, env.record.internalName, env.record.slug].join(' ')
+  // List columns, sorts and search text: src/modules/shared/list-definitions.js (shared with the server).
 };

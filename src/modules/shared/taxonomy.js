@@ -12,7 +12,7 @@ export const TAXONOMY_NAMESPACES = Object.freeze({ type: 'Tour type', category: 
 export const TAXONOMY_PLURALS = Object.freeze({ type: 'Tour types', category: 'Tour categories', standard: 'Tour standards', tag: 'Tour tags' });
 // Neutral descriptions only: what each group is used for in this prototype, never what its values mean.
 export const NAMESPACE_NOTES = Object.freeze({
-  type: 'Used by the tour editor’s “Tour type” field. Which types exist and what each one means await owner confirmation (B4); nothing is pre-filled.',
+  type: 'Used by the tour editor’s “Tour types” field. Which types exist and what each one means await owner confirmation (B4); nothing is pre-filled.',
   category: 'Used by the tour editor’s “Tour category” field. The category list and its definitions await owner confirmation (B4); nothing is pre-filled.',
   standard: 'Used by the tour editor’s “Tour standard” field. Which standards exist and how they are defined await owner confirmation (B4); nothing is pre-filled.',
   tag: 'Used by tours and day trips, and by the day-trip tag filter. The tag list awaits owner confirmation (B4); nothing is pre-filled.'

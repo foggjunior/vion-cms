@@ -5,25 +5,35 @@ import { errorDetails, notice, toast } from '../components/feedback.js';
 import { MediaUrlScope, assetImage, assetSummary } from '../components/media.js';
 import { runImageUpload } from '../components/media-picker.js';
 import { ACCEPT_ATTRIBUTE, MEDIA_LIMITS } from '../storage/media-validation.js';
-import { assetUsage } from './shared/records.js';
 import { formatBytes, formatDateTime } from './shared/format.js';
 import { toolNav } from './list-view.js';
 
 export async function createMediaLibraryView({ app }) {
   const ws = await app.workspace();
-  let ctx = await ws.loadContext();
+  // One page of images at a time from ws.summaries.mediaPage, with where each image is used.
+  let page = null, rows = [], failed = null, sequence = 0, timer = null;
   const scope = new MediaUrlScope(ws.media);
   const grid = h('div', { class: 'library-grid' });
   const uploadResults = h('div', { 'aria-live': 'polite' });
-  const search = h('input', { id: 'library-search', type: 'search', class: 'input', placeholder: 'Search by file name, alt text or credit', on: { input: render } });
+  const search = h('input', { id: 'library-search', type: 'search', class: 'input', placeholder: 'Search by file name, alt text or credit', on: { input: () => { clearTimeout(timer); timer = setTimeout(() => load(), 250); } } });
 
-  async function reload() {
-    ctx = await ws.loadContext();
-    render();
+  async function load({ append = false } = {}) {
+    const id = ++sequence;
+    grid.setAttribute('aria-busy', 'true');
+    try {
+      const result = await ws.summaries.mediaPage({ q: search.value, after: append ? page?.next : null });
+      if (id !== sequence) return;
+      rows = append ? [...rows, ...result.rows] : result.rows; page = result; failed = null;
+    } catch (err) {
+      if (id !== sequence) return;
+      failed = err;
+    } finally {
+      if (id === sequence) { grid.setAttribute('aria-busy', 'false'); render(); }
+    }
   }
+  const reload = () => load();
 
-  function card(asset) {
-    const usage = assetUsage(asset.id, ctx);
+  function card({ asset, usage }) {
     const fields = {};
     const field = (key, label) => {
       const id = `asset-${asset.id}-${key}`;
@@ -64,12 +74,12 @@ export async function createMediaLibraryView({ app }) {
 
   function render() {
     clear(grid);
-    const term = search.value.trim().toLowerCase();
-    const assets = [...ctx.assets.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
-      .filter(a => !term || [a.fileName, a.alt, a.credit].join(' ').toLowerCase().includes(term));
-    if (!ctx.assets.size) grid.append(h('p', { class: 'muted' }, 'No images yet. Upload images here or from any editor’s Media tab.'));
-    else if (!assets.length) grid.append(h('p', { class: 'muted' }, 'No images match your search.'));
-    for (const asset of assets) grid.append(card(asset));
+    if (failed) { grid.append(notice('error', 'Images could not be loaded. ', errorDetails(failed), ' ', button('Try again', { variant: 'secondary', onClick: () => load() }))); return; }
+    if (!page) { grid.append(h('p', { class: 'muted' }, 'Loading images…')); return; }
+    if (!page.total) grid.append(h('p', { class: 'muted' }, 'No images yet. Upload images here or from any editor’s Media tab.'));
+    else if (!rows.length) grid.append(h('p', { class: 'muted' }, 'No images match your search.'));
+    for (const row of rows) grid.append(card(row));
+    if (page.next) grid.append(h('div', { class: 'btn-row list-more' }, button(`Show more (${page.filtered - rows.length} more)`, { variant: 'secondary', onClick: () => load({ append: true }) })));
   }
 
   const fileInput = h('input', {
@@ -79,7 +89,8 @@ export async function createMediaLibraryView({ app }) {
     }
   });
 
-  const missing = [...ctx.assets.values()].filter(a => !a.hasBlob).length;
+  await load();
+  const missing = page?.missing || 0;
   const el = h('div', { class: 'library-view' },
     h('div', { class: 'view-head' },
       h('div', null, h('div', { class: 'eyebrow' }, 'LOCAL CONTENT TOOLS'), h('h1', { tabindex: '-1' }, 'Media library'),

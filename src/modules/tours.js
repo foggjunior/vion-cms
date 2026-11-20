@@ -1,15 +1,13 @@
 import {addAccommodation,chooseTourRooms} from '../operations/accommodation-dialog.js';
 import {tourCostSection} from '../operations/editor-sections.js';
-// Tours module. Most tour fields are inferred (B1); taxonomies are managed terms awaiting definitions (B4);
-// pricing is limited to price-on-request or an explicit manual "from" price until the price model (B2/B3) is
-// confirmed.
+// Safari tour editor with managed classifications, day-by-day itinerary and public pricing.
 import { button, h } from '../components/dom.js';
 import { confirmDialog } from '../components/dialog.js';
 import { notice } from '../components/feedback.js';
 import { fieldIdFor } from '../components/fields.js';
 import { createRepeater } from '../components/repeater.js';
-import { MEAL_OPTIONS, compareOptionalNumber, newItineraryDay } from './shared/records.js';
-import { describePrice } from './shared/pricing.js';
+import { galleryField } from '../components/media.js';
+import { MEAL_OPTIONS, newItineraryDay } from './shared/records.js';
 import { manageTaxonomiesLink, tagsField, termSelect } from './term-fields.js';
 import { pricingSection } from './pricing-section.js';
 
@@ -33,7 +31,7 @@ function classification(ed) {
     h('div', { class: 'form-group' },
       h('h3', { class: 'group-title' }, 'Classification (optional)'),
       notice('info', 'Tour types, categories, standards and tags are managed terms with stable IDs. Their definitions await owner confirmation (B4); no existing CMS values are assumed. Only active terms can be newly chosen; publishing needs them in the published taxonomy.', ' ', manageTaxonomiesLink()),
-      h('div', { class: 'form-grid' }, termSelect(ed, 'typeId', 'type'), termSelect(ed, 'categoryId', 'category'), termSelect(ed, 'standardId', 'standard'), tagsField(ed, { sectionId: 'classification' })))
+      h('div', { class: 'form-grid' }, tagsField(ed, { sectionId: 'classification', namespace: 'type', key: 'typeIds', hint: 'Select all tour types that apply.' }), termSelect(ed, 'categoryId', 'category'), termSelect(ed, 'standardId', 'standard'), tagsField(ed, { sectionId: 'classification' })))
   ];
 }
 
@@ -97,6 +95,8 @@ function itinerary(ed) {
         ed.readOnly?null:h('div',{class:'btn-row'},button('Add accommodation',{onClick:async()=>{const saved=await addAccommodation({ws:ed.ws,ctx:ed.ctx,initial:{destinationId:day.destinationIds[0]||''},onEditing:ed.changed});if(!saved)return;ed.ctx.records.set(saved.accommodation.id,saved.accommodation);day.accommodationIds.push(saved.accommodation.id);if(saved.rate?.rooms?.[0]){const room=saved.rate.rooms[0];day.accommodationRooms=[...(day.accommodationRooms||[]),{accommodationId:saved.accommodation.id,roomId:room.id,roomName:room.name}];}ed.changed();repeater.render();}}),button('Choose room type',{onClick:()=>chooseTourRooms(ed,day)})),
         (day.accommodationRooms||[]).length?h('p',{class:'field-hint'},'Room types: '+day.accommodationRooms.filter(r=>day.accommodationIds.includes(r.accommodationId)).map(r=>r.roomName).join(', ')):null,
         mealsField(ed, base, day),
+        galleryField({ path: base + '.photos', items: day.photos, ctx: ed.ctx, scope: ed.scope,
+          pick: options => ed.pick(options), onChange: ed.changed, readOnly: ed.readOnly, dayPhotos: true }),
         ed.list(`${base}.activities`, { label: 'Activities', noun: 'activity', placeholder: 'e.g. Afternoon game drive' }));
     }
   });
@@ -115,7 +115,7 @@ function itinerary(ed) {
 export const tourModule = {
   kind: 'tour', path: 'tours', label: 'Tour', plural: 'Tours', icon: 'map',
   navGroup: 'Tour Packages', listLabel: 'Tours List', addLabel: 'Add Tour',
-  intro: 'Tour packages with destinations, day-by-day itinerary, inclusions and provisional pricing.',
+  intro: 'Tour packages with destinations, day-by-day itinerary, inclusions and public group prices.',
   sections: [
     { id: 'basics', label: 'Basics', render: basics },
     { id: 'classification', label: 'Destinations & classification', render: classification },
@@ -125,15 +125,5 @@ export const tourModule = {
     tourCostSection,
     'media', 'seo', 'preview'
   ],
-  columns: [
-    { label: 'Duration', cell: env => (env.record.durationDays ? `${env.record.durationDays} d` : '—') },
-    { label: 'Destinations', cell: (env, ctx) => env.record.destinationIds.map(id => ctx.records.get(id)?.record.title || 'Missing').join(', ') || '—' },
-    { label: 'Price', cell: env => describePrice(env.record.pricing).text },
-    { label: 'Featured', cell: env => (env.record.featured ? 'Yes' : '') }
-  ],
-  sorts: {
-    price: { label: 'Price (missing last)', compare: null },
-    rank: { label: 'Recommended rank', compare: compareOptionalNumber('recommendedRank') }
-  },
-  searchText: env => [env.record.title, env.record.slug, env.record.summary].join(' ')
+  // List columns, sorts and search text: src/modules/shared/list-definitions.js (shared with the server).
 };

@@ -102,7 +102,7 @@ export function termAttention(record, ctx) {
 function checkMedia(record, ctx, issues, publish) {
   for (const ref of assetRefs(record)) {
     const asset = ctx.assets.get(ref.assetId);
-    const where = ref.role === 'gallery' ? `Gallery image ${Number(ref.path.split('.')[1]) + 1}` : ref.role === 'cover' ? 'The cover image' : 'The share image';
+    const where = ref.role === 'gallery' ? `Gallery image ${Number(ref.path.split('.')[1]) + 1}` : ref.role === 'cover' ? 'The cover image' : ref.role === 'itinerary photo' ? 'The itinerary photo' : 'The share image';
     if (!asset) issues.push(error(ref.path, `${where} is missing from the local media library (asset ${shortId(ref.assetId)}). Remove it or choose another image.`));
     else if (!asset.hasBlob) issues.push((publish ? error : warning)(ref.path, `${where} has metadata but its image file is not stored in this browser. Import the media backup or choose another image.`));
   }
@@ -111,6 +111,13 @@ function checkMedia(record, ctx, issues, publish) {
   else if (blank(record.cover.alt)) issues.push(error('cover.alt', 'Describe the cover image in context (alt text), for example “Elephants crossing the Tarangire River at sunset”.'));
   (record.gallery || []).forEach((p, i) => {
     if (!p.decorative && blank(p.alt)) issues.push(error(`gallery.${i}.alt`, `Add alt text for gallery image ${i + 1}, or mark it as decorative.`));
+  });
+  if (record.kind === 'tour') (record.itinerary || []).forEach((day, i) => {
+    (day.photos || []).forEach((photo, j) => {
+      if (!photo.decorative && blank(photo.alt)) issues.push(error(
+        'itinerary.' + i + '.photos.' + j + '.alt', 'Add alt text for this day photo, or mark it as decorative.'
+      ));
+    });
   });
   const imageIds = new Set(assetRefs(record).filter(r => r.role !== 'share image').map(r => r.assetId));
   if (imageIds.size < 3) issues.push(warning('gallery', `Only ${imageIds.size} image${imageIds.size === 1 ? '' : 's'} (cover + gallery). Three or more are recommended; this does not block publishing.`));
@@ -140,6 +147,7 @@ function checkKindDraft(record, issues) {
     caseOnlyDuplicates(record.activities, 'activities', 'Activities', issues);
   }
   if (record.kind === 'accommodation') {
+    if (record.mapLink && webUrlMessage(record.mapLink)) issues.push(error('mapLink', webUrlMessage(record.mapLink)));
     if (record.website && webUrlMessage(record.website)) issues.push(error('website', webUrlMessage(record.website)));
     if (record.publicPhone && phoneMessage(record.publicPhone)) issues.push(error('publicPhone', phoneMessage(record.publicPhone)));
     caseOnlyDuplicates(record.amenities, 'amenities', 'Amenities', issues);
@@ -188,7 +196,7 @@ function checkKindPublish(record, ctx, issues) {
       issues.push(error('destinationId', 'Link a published destination, or explain why this accommodation has no destination.'));
     }
     if (record.publicPhoneVisible && blank(record.publicPhone)) issues.push(error('publicPhone', 'Enter the public phone number, or untick “Show phone publicly”.'));
-    if (record.publicPageEnabled === false) issues.push(warning('publicPageEnabled', 'The public page is disabled, so this accommodation will not appear in the local preview site listing (A3 visibility is unresolved).'));
+    if (record.publicPageEnabled === false) issues.push(warning('publicPageEnabled', 'This accommodation has no standalone page. It can be referenced in itineraries.'));
   }
   if (record.kind === 'tour') {
     need('overview', 'Write an overview of the tour.');

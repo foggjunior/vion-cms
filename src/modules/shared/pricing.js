@@ -1,6 +1,5 @@
-// Provisional tour pricing: price on request, or an explicit manual "from" amount.
-// The residency/season/group price matrix (B2/B3) is deliberately not modelled or calculated.
-export const PRICING_MODES = Object.freeze({ request: 'Price on request', manualFrom: 'Manual “from” price (provisional)' });
+export const PRICING_MODES = Object.freeze({ request: 'Price on request', groupUsd: 'USD group prices', manualFrom: 'Legacy “from” price' });
+export const GROUP_PRICE_FIELDS = Object.freeze(['group2', 'group4', 'group6']);
 export const BASIS_LABELS = Object.freeze({ perPerson: 'per person', perGroup: 'per group', perVehicle: 'per vehicle' });
 export const AMOUNT_PATTERN = /^(0|[1-9][0-9]*)(\.[0-9]+)?$/;
 export const MAX_INTEGER_DIGITS = 12;
@@ -47,6 +46,19 @@ export function pricingIssues(pricing, { publish = false } = {}) {
   }
   if (!(pricing.mode in PRICING_MODES)) { error('pricing.mode', 'Choose a valid pricing mode.'); return issues; }
   if (pricing.mode === 'request') return issues;
+  if (pricing.mode === 'groupUsd') {
+    for (const key of GROUP_PRICE_FIELDS) {
+      const amount = pricing[key];
+      const label = 'group of ' + key.slice(-1);
+      if (amount === undefined) {
+        if (publish) error('pricing.' + key, 'Enter the USD price per person for a ' + label + '.');
+      } else {
+        const message = amountMessage(amount, 'USD');
+        if (message || !(Number(amount) > 0)) error('pricing.' + key, message || 'Enter a price greater than zero.');
+      }
+    }
+    return issues;
+  }
   const { currency, amount, basis, applicability } = pricing;
   if (currency !== undefined && !isSupportedCurrency(currency)) error('pricing.currency', `“${currency}” is not a supported ISO 4217 currency code. Use three capital letters such as USD, EUR or TZS.`);
   if (amount !== undefined) { const message = amountMessage(amount, currency); if (message) error('pricing.amount', message); }
@@ -74,6 +86,11 @@ export function formatAmount(amount, currency) {
 // kind: request | from | incomplete. "per person" is rendered only for the perPerson basis.
 export function describePrice(pricing) {
   if (!pricing || pricing.mode === 'request' || !pricing.mode) return { kind: 'request', text: 'Price on request', basis: null };
+  if (pricing.mode === 'groupUsd') {
+    if (pricingIssues(pricing, { publish: true }).length) return { kind: 'incomplete', text: 'Enter all three USD group prices', basis: 'per person' };
+    const amount = formatAmount(pricing.group6, 'USD');
+    return { kind: 'from', text: 'From ' + amount + ' per person', amount, basis: 'per person', applicability: 'Based on a group of 6.' };
+  }
   const { amount, currency, basis, applicability } = pricing;
   if (amount === undefined || !isSupportedCurrency(currency) || !(basis in BASIS_LABELS) || amountMessage(amount, currency)) {
     return { kind: 'incomplete', text: 'Manual price incomplete', basis: basis in BASIS_LABELS ? BASIS_LABELS[basis] : null };
@@ -100,6 +117,8 @@ export function comparePricing(a, b) {
   const bHas = db.kind === 'from';
   if (aHas !== bHas) return aHas ? -1 : 1;
   if (!aHas) return 0;
-  if (a.currency !== b.currency) return a.currency < b.currency ? -1 : 1;
-  return compareDecimalStrings(a.amount, b.amount);
+  const aCurrency = a.mode === 'groupUsd' ? 'USD' : a.currency;
+  const bCurrency = b.mode === 'groupUsd' ? 'USD' : b.currency;
+  if (aCurrency !== bCurrency) return aCurrency < bCurrency ? -1 : 1;
+  return compareDecimalStrings(a.mode === 'groupUsd' ? a.group6 : a.amount, b.mode === 'groupUsd' ? b.group6 : b.amount);
 }

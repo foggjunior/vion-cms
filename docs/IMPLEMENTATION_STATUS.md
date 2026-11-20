@@ -1,6 +1,88 @@
+# 20 November 2026 — CMS and public website parity updates
+
+The updates target both development branches. Staging verification and content migration are pending.
+
+- New tours and day trips start with three staff-entered USD rates per person for groups of 2, 4 and 6. Publish requires all three. Cards and price sorting use the group-of-6 rate, and the detail page displays all three. Existing records retain their saved price format until staff switch to group pricing. A legacy price can supply a headline amount only when it is USD per person. Never extrapolate the old rate into the three group sizes.
+- Mark up to five destinations for the homepage using the Featured checkbox and Order. The homepage takes the first five featured destinations in order, and the full listing uses Order independently. Existing published destinations need a new published snapshot after staff set Featured.
+- Tours can have multiple types and optional day photos. Existing single types carry over. The public itinerary shows multiple destinations on the same day and keeps the existing stay references.
+- Accommodation phone, map link and featured status are available for staff. New accommodation records have no standalone public page. In CMS mode the website redirects the accommodation listing and detail URLs to /tours with HTTP 308. An already-published accommodation with public feed visibility enabled needs that flag switched off and republished to remove its feed entry. Public team profiles keep their role and biography, and contact links are withheld.
+- Booking emails resolve trip titles and links and planner selections through the published catalogue in CMS mode. The submission storage and email delivery setup still follow the previous workflow.
+
+Verified in isolation: 144 CMS server tests and 128 website tests passed. CMS TypeScript and website JSX syntax checks passed. All 55 CMS browser checks passed in Chromium after updating two stale test assertions for the dashboard quick actions and account Settings button.
+
+Still open for cutover are the staging publish-and-booking check, legacy content migration, retired destination URL aliases, and the other release gates in [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md). No destination coordinates or new Giving Back profile fields were added in this pass.
+
+# 20 November 2026 — performance and security implementation
+
+Results from the earlier performance pass. Full evidence, benchmarks, changed files and owner checks: [PERFORMANCE_AND_SECURITY.md](PERFORMANCE_AND_SECURITY.md). Production gates in [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) stay open.
+
+- **Dashboard and lists:**
+  - The dashboard makes one summary request, computed on the server: 5 requests and 3.5–21 MB before, 2 requests and about 2 KB now.
+  - Destinations, Accommodations, Tours, Day trips, Bookings, Gallery and every editorial list page on the server, with stable cursors (lists drop from 2.7–16 MB to about 15 KB per page).
+  - Role rules are enforced on the server, and the offline preview computes the same summaries.
+- **Public caching:**
+  - The website's Next.js data cache is the only cache layer: tagged by CMS origin, path and kind, with a 300 s fallback TTL and a hard maximum of TTL + 60 s.
+  - The CMS queues a signed invalidation in the same transaction as every publication change.
+  - Status: awaiting staging configuration.
+- **Article images:**
+  - Responsive `srcset`/`sizes` with reserved dimensions.
+  - Lab results: phone −36% and desktop −71% image bytes; CLS 0.0191 → 0.
+- **Security:**
+  - CMS `sharp` is 0.35.5, with unused libvips loaders blocked.
+  - The MFA option is verified with mock sessions, but enforcement waits for a second-factor step on the login page.
+  - The React staff pages have a report-only CSP.
+  - Website dependency upgrades (critical Next.js advisories) need pnpm and are an owner action.
+- **Independent saves:**
+  - Edits of different existing records now save in parallel (100/100, previously 50/100).
+  - Same-version edits of one record still give one stale conflict.
+  - Single-record reads skip the workspace snapshot.
+  - Index exemptions are ready in `firestore.indexes.json`.
+
+Checks:
+
+- CMS: 142 server tests; browser suites 57, 25, 94 and 97; `tests/e2e.mjs` 53 with the 2 known failures; `tsc` 0 errors.
+- Website: 123 tests.
+- All runs were isolated; nothing was committed or deployed.
+
+# 19 November 2026 — production readiness audit and fixes
+
+Historical; see the 20 November entry above for current status. The full report, owner gates, runbook and measurements are in [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md). Resume from [CONTINUATION.md](../CONTINUATION.md).
+
+**Recommendation:** ready for owner-run staging verification. Not ready for cutover, which is blocked by gates G1–G6: booking import topology, the legacy content converter, backups/PITR, the hosting plan, projection reconciliation, and the `sharp` upgrade.
+
+- **Public data:**
+  - The feed now contains allowlisted fields only.
+  - Staff-only names, hidden phones, drafts and private records are withheld.
+  - A stay with its public page disabled gets no page, list entry, alias or gallery; tours keep a minimal summary.
+  - Stored documents are sanitised on read, and `npm run public:reconcile` rebuilds them.
+  - `cms_public` is API-only in the rules.
+- **Website (development worktree):**
+  - CMS aliases answer with 308 (including Give Back).
+  - CMS SEO reaches page metadata, and the sitemap drops noindex pages.
+  - Catalogues follow cursors with embedded media.
+  - `CMS_PUBLIC_MODE` makes cutover fail visibly and rollback explicit; `scripts/cms-preflight.mjs` checks before switching.
+- **Bookings and email:**
+  - Each run imports the whole reachable backlog: a recent window plus a sweep, with no revision bump when idle.
+  - The scheduled jobs fail independently.
+  - The outbox is due-first and lease-guarded, and respects Resend's 24-hour idempotency window.
+  - Webhook delivery state only moves forward.
+- **Recovery and capacity:**
+  - Restore rehearsal and idempotent re-import are tested; `FIRESTORE_DATABASE_ID` selects a restored database.
+  - A warm snapshot cache cuts read RPCs to 1 Firestore read.
+  - Responses over 4 MB stream, up to a 48 MB cap with a clear 413.
+  - `npm run bench:capacity` measures headroom.
+- **Security:** a tested role and route matrix; noindex, HSTS and Permissions-Policy headers; optional MFA for privileged roles.
+
+Checks:
+
+- CMS: 108 server tests (61 existing + 47 new), 57 cloud-UI and 25 inline-accommodation browser checks, and `tsc` with 0 errors.
+- Website: 106 tests (92 existing + 14 new).
+- All runs were isolated: no environment files, Firebase, Cloudinary, Resend or Next build/dev.
+- Not committed or deployed.
+
 # 18 November 2026 — blog article sections, destination highlights, faster images
 
-Current status for this work; resume from [CONTINUATION.md](../CONTINUATION.md).
+Historical; superseded by the 19 November entry above.
 
 - **Blog Article editor:** only the formatting toolbar stays pinned while scrolling. The title/Save/Publish bar no longer sticks on blog editors. The toolbar has a pale background and offers Normal, H1, H2 and H3, plus Left, Center, Right and Justify alignment. **Add section** opens a composer with heading level, heading, paragraph text, supporting photos (two sit side by side and stack on phones) and optional text after the photos. Previews and the public site keep the writer's heading levels and alignment. Publishing requires three distinct H1–H3 headings for blogs.
 - **Publish popup:** publishing a blog post shows an **Article published** dialog with the article title and address.

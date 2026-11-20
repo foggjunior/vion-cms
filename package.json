@@ -13,26 +13,28 @@
     "start": "next start --hostname 127.0.0.1 --port 3000",
     "test:server": "node --test server/tests/*.test.mjs",
     "staff:bootstrap": "node --env-file-if-exists=.env.local tools/bootstrap-staff.mjs",
-    "migrate:plan": "node --env-file-if-exists=.env.local tools/migrate-cloud.mjs"
+    "migrate:plan": "node --env-file-if-exists=.env.local tools/migrate-cloud.mjs",
+    "public:reconcile": "node --env-file-if-exists=.env.local tools/reconcile-public.mjs",
+    "bench:capacity": "node tools/bench-capacity.mjs"
   },
   "dependencies": {
+    "cloudinary": "^2.7.0",
+    "fake-indexeddb": "^6.2.0",
+    "firebase": "^12.0.0",
+    "firebase-admin": "14.5.0",
     "next": "16.4.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "firebase": "^12.0.0",
-    "firebase-admin": "14.5.0",
-    "cloudinary": "^2.7.0",
     "resend": "^6.0.0",
-    "fake-indexeddb": "^6.2.0",
-    "sharp": "^0.34.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "tailwindcss": "4.3.5",
     "@tailwindcss/postcss": "4.3.5",
-    "typescript": "^5.9.0",
     "@types/node": "^22",
     "@types/react": "^19",
-    "@types/react-dom": "^19"
+    "@types/react-dom": "^19",
+    "tailwindcss": "4.3.5",
+    "typescript": "^5.9.0"
   }
 }

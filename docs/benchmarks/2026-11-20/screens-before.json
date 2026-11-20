@@ -1,0 +1,94 @@
+{
+  "generatedAt": "2026-11-19T21:09:42.817Z",
+  "node": "v24.20.0",
+  "runs": 7,
+  "report": [
+    {
+      "size": 200,
+      "entries": 871,
+      "dashboard": {
+        "runs": 7,
+        "requests": 5,
+        "ops": [
+          "bookings.list",
+          "operations.list",
+          "review.list",
+          "review.profile",
+          "content.loadContext"
+        ],
+        "bytes": 3519383,
+        "p50ms": 1480,
+        "p95ms": 1579
+      },
+      "destinations": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "content.loadContext"
+        ],
+        "bytes": 2668646,
+        "p50ms": 1534,
+        "p95ms": 1604
+      }
+    },
+    {
+      "size": 600,
+      "entries": 2611,
+      "dashboard": {
+        "runs": 7,
+        "requests": 5,
+        "ops": [
+          "bookings.list",
+          "operations.list",
+          "review.list",
+          "review.profile",
+          "content.loadContext"
+        ],
+        "bytes": 10560469,
+        "p50ms": 3315,
+        "p95ms": 3504
+      },
+      "destinations": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "content.loadContext"
+        ],
+        "bytes": 8007206,
+        "p50ms": 2363,
+        "p95ms": 2881
+      }
+    },
+    {
+      "size": 1200,
+      "entries": 5221,
+      "dashboard": {
+        "runs": 7,
+        "requests": 5,
+        "ops": [
+          "bookings.list",
+          "operations.list",
+          "review.list",
+          "review.profile",
+          "content.loadContext"
+        ],
+        "bytes": 21125009,
+        "p50ms": 4866,
+        "p95ms": 6283
+      },
+      "destinations": {
+        "runs": 7,
+        "requests": 2,
+        "ops": [
+          "review.profile",
+          "content.loadContext"
+        ],
+        "bytes": 16016846,
+        "p50ms": 3035,
+        "p95ms": 3629
+      }
+    }
+  ]
+}
